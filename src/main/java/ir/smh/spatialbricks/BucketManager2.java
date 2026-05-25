@@ -1,7 +1,13 @@
 package ir.smh.spatialbricks;
 
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
+
 import java.io.*;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -264,6 +270,39 @@ public class BucketManager2 {
 
     private static boolean bucketOutOfRange (int geo, Bucket bucket) {
         return geo < bucket.min || geo >= bucket.max;
+    }
+
+    public static int[] computeBucketBorders(Dataset<Row> df, String bucketFile) { // اضافه کردن ورودی نام فایل
+        List<Integer> list = df
+                .select("geohash_numeric")
+                .as(Encoders.INT())
+                .collectAsList();
+
+        int[] geos = list.stream().mapToInt(Integer::intValue).toArray();
+        BucketManager2.Bucket bucket;
+
+        File f = new File(bucketFile);
+
+        if (f.exists()) {
+            bucket = BucketManager2.loadBucket(bucketFile);
+            System.out.println("Bucket loaded from: " + bucketFile);
+            if (bucket == null) bucket = BucketManager2.initialBucket();
+        } else {
+            bucket = BucketManager2.initialBucket();
+            System.out.println("Created new bucket for: " + bucketFile);
+        }
+
+        BucketManager2.BucketCollection result = BucketManager2.addGeosToBuckets(geos, bucket, 512);
+        bucket=result.getBucket();
+
+
+        int[] neededBucketMinsForNewRecords=result.getneededBucketMinsForNewRecords().stream().mapToInt(Integer::intValue).toArray();
+
+        BucketManager2.saveBucket(bucket, bucketFile);
+        Arrays.sort(neededBucketMinsForNewRecords);
+
+
+        return  neededBucketMinsForNewRecords;
     }
 
 

@@ -6,10 +6,12 @@ import ir.smh.spatialbricks.encoder.GeometryOptions;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.CoordinateToGeohashNumericUdfRegistry;
 import ir.smh.spatialbricks.encoder.udf.GeohashToIntegerUdfRegistry;
+import ir.smh.spatialbricks.encoder.udf.SparkUdfs;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.sedona.core.formatMapper.GeoJsonReader;
 import org.apache.sedona.sql.utils.Adapter;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -24,7 +26,7 @@ import java.util.List;
 
 import static org.apache.spark.sql.functions.*;
 
-public class SpatialWritingWithoutIndex2 implements Serializable {
+public class SpatialWritingWithIndex implements Serializable {
 
     private final SparkSession spark;
     private final GeometryOptions options;
@@ -32,7 +34,7 @@ public class SpatialWritingWithoutIndex2 implements Serializable {
 
 
 
-    public SpatialWritingWithoutIndex2(SparkSession spark, GeometryOptions options, GeometryReader<?> adapter) {
+    public SpatialWritingWithIndex(SparkSession spark, GeometryOptions options, GeometryReader<?> adapter) {
         this.spark = spark;
         this.options = options;
         this.adapter = adapter;
@@ -138,7 +140,8 @@ public class SpatialWritingWithoutIndex2 implements Serializable {
     // ELT process
     // ---------------------------
 
-    private Dataset<Row> transform(Dataset<Row> df) {
+    private Dataset<Row> transform(Dataset<Row> df,String bucketFileName, JavaSparkContext jsc) {
+
 
         registerUdfs();
 
@@ -158,8 +161,22 @@ public class SpatialWritingWithoutIndex2 implements Serializable {
         );
 
 
+        int[] neededBucketMinsForNewRecords = BucketManager2.computeBucketBorders(transformed, bucketFileName);
 
-        return transformed.withColumn("bucket_min", lit(-1).cast("int"));
+        Broadcast<int[]> broadcastBorders2 = jsc.broadcast(neededBucketMinsForNewRecords);
+
+        SparkUdfs.registerFindFloorUdf(spark, broadcastBorders2);
+
+        transformed = transformed.withColumn(
+                "bucket_min",
+                callUDF("findFloor", col("geohash_numeric"))
+        );
+
+
+
+
+
+        return transformed;
     }
 
 
@@ -173,12 +190,12 @@ public class SpatialWritingWithoutIndex2 implements Serializable {
         String fullName = silver.database() + "." + silver.table();
         boolean exists = spark.catalog().tableExists(fullName);
 
-        Dataset<Row> transformed = transform(df);
+        String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
 
+        Dataset<Row> transformed = transform(df, bucketFileName, jsc );
 
         if (!exists) {
             System.out.println("Now creating silver table with ID column...");
-
 
             IcebergTableCreatorWithPartitioning.createIcebergTableFromSchema(
                     spark,
@@ -188,6 +205,13 @@ public class SpatialWritingWithoutIndex2 implements Serializable {
                     List.of("identity(bucket_min)")
             );
         } else {
+
+            long maxId = spark.read().format("iceberg").load(fullName)
+                    .agg(max("id").as("my_max"))
+                    .first()
+                    .getAs("my_max");
+
+            transformed = transformed.withColumn("id", monotonically_increasing_id().plus(maxId + 1));
 
             StructType tableSchema = spark.table(fullName).schema();
 
@@ -199,6 +223,8 @@ public class SpatialWritingWithoutIndex2 implements Serializable {
             }
 
         }
+
+
 
         transformed.writeTo(fullName).append();
         System.out.println("Data appended to silver layer");
