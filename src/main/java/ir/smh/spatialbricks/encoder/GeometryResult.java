@@ -107,6 +107,15 @@ public class GeometryResult {
         return null;
     }
 
+    public static String computeGeoHash(double lon,double lat) {
+        if (lat>=-90 && lat<=90 && lon>=-180 && lon<=180) {
+
+            GeoHash hash = GeoHash.withCharacterPrecision(lat, lon, 6);
+            return hash.toBase32();
+        }
+        return null;
+    }
+
 
 
     public static Long convertGeohashToLong(String gh) {
@@ -120,6 +129,28 @@ public class GeometryResult {
             value = value * 32 + v;
         }
         return value;
+    }
+
+    public static Integer convertGeohashToInt(String gh) {
+
+        if (gh == null || gh.isEmpty()) return null;
+
+        Integer value = 0;
+        for (char c : gh.toCharArray()) {
+            Integer v = GEOHASH_MAP.get(c);
+            if (v == null) {
+                System.out.println("invalid geohash character in letter: " + c + "in geohash:" + gh);
+                return null;
+            }
+            value = value * 32 + v;
+        }
+        return value;
+    }
+
+    public static  Integer  computeGeohashNumeric(double lon, double lat) {
+
+        return convertGeohashToInt(computeGeoHash(lon,lat));
+
     }
 }
 

@@ -42,7 +42,7 @@ public class AddIndexToSpatialData implements Serializable {
         Dataset<Row> table =
                 spark.read()
                         .format("iceberg")
-                        .load(fullName).cache();
+                        .load(fullName);
         spark.sql("""          
                 SELECT count(*) AS silvercount1
                 FROM spark_catalog.silverlayer.FireStations
@@ -52,51 +52,56 @@ public class AddIndexToSpatialData implements Serializable {
         Dataset<Row> notIndexedRows = table.filter(col("bucket_min").equalTo(-1));
         Dataset<Row> indexedRows = table.filter(col("bucket_min").notEqual(-1));
 
-
         collectionOfBordersAndNewBorders collector = computeBucketBorders(notIndexedRows, bucketFileName);
 
+        if (!indexedRows.isEmpty()) {
 
 
-        Integer[] oldBordersForOldRecords =
-                Arrays.stream(collector.getoldBordersForOldRecords()).boxed().toArray(Integer[]::new);
+            Integer[] oldBordersForOldRecords =
+                    Arrays.stream(collector.getoldBordersForOldRecords()).boxed().toArray(Integer[]::new);
 
-        Dataset<Row> previousIndexedRowsAffectedFromNewIndexing =
-                indexedRows.filter(
-                        functions.col("bucket_min").isin((Object[]) oldBordersForOldRecords)
-                );
-        List<Row> plist = previousIndexedRowsAffectedFromNewIndexing
-                .select("bucket_min").distinct().collectAsList();
+            Dataset<Row> previousIndexedRowsAffectedFromNewIndexing =
+                    indexedRows.filter(
+                            functions.col("bucket_min").isin((Object[]) oldBordersForOldRecords)
+                    );
+            List<Row> plist = previousIndexedRowsAffectedFromNewIndexing
+                    .select("bucket_min").distinct().collectAsList();
 
-        if (!plist.isEmpty()) {
-        String partList = plist.stream()
-                .map(r -> String.valueOf(r.getInt(0)))   // این درست است
-                .collect(Collectors.joining(","));
+            if (!plist.isEmpty()) {
+                String partList = plist.stream()
+                        .map(r -> String.valueOf(r.getInt(0)))   // این درست است
+                        .collect(Collectors.joining(","));
 
-        spark.sql(String.format("""
-    DELETE FROM spark_catalog.silverlayer.FireStations WHERE bucket_min IN (%s)
-""", partList));
+                spark.sql(String.format("""
+                UPDATE spark_catalog.silverlayer.FireStations
+                SET bucket_min = -2
+                WHERE bucket_min IN (%s)
+                """, partList));
 
-        } else {
-            System.out.println("No partitions to delete");
+            } else {
+                System.out.println("No partitions to delete");
+            }
+
+            Broadcast<int[]> broadcastBorders = jsc.broadcast(collector.getupdatesForOldRecords());
+
+            SparkUdfs.registerFindFloorUdf(spark, broadcastBorders);
+
+            previousIndexedRowsAffectedFromNewIndexing = previousIndexedRowsAffectedFromNewIndexing.withColumn(
+                    "bucket_min",
+                    callUDF("findFloor", col("geohash_numeric"))
+            );
+
+
+            previousIndexedRowsAffectedFromNewIndexing.writeTo(fullName)
+                    .overwritePartitions();
+
+            System.out.println("previousIndexedRowsAffectedFromNewIndexing count = "
+                    + previousIndexedRowsAffectedFromNewIndexing.count());
         }
 
-        Broadcast<int[]> broadcastBorders = jsc.broadcast(collector.getupdatesForOldRecords());
-
-        SparkUdfs.registerFindFloorUdf(spark, broadcastBorders);
-
-        previousIndexedRowsAffectedFromNewIndexing =  previousIndexedRowsAffectedFromNewIndexing.withColumn(
-                "bucket_min",
-                callUDF("findFloor", col("geohash_numeric"))
-        );
-
-
-        previousIndexedRowsAffectedFromNewIndexing.writeTo(fullName)
-                .overwritePartitions();
-
         spark.sql("""          
-                SELECT count(*) AS silvercount2
-                FROM spark_catalog.silverlayer.FireStations
-               
+             SELECT count(*) AS silvercount2
+             FROM spark_catalog.silverlayer.FireStations
          """).show();
 
         int[] newNeededBucketMinsForNewRecords= collector.getneededBucketMinsForNewRecords();
@@ -117,7 +122,6 @@ public class AddIndexToSpatialData implements Serializable {
         spark.sql("""          
                 SELECT count(*) AS silvercount3
                 FROM spark_catalog.silverlayer.FireStations
-                
          """).show();
 
         notIndexedRows.writeTo(fullName).append();
@@ -125,29 +129,24 @@ public class AddIndexToSpatialData implements Serializable {
         spark.sql("""          
                 SELECT count(*) AS silvercount4
                 FROM spark_catalog.silverlayer.FireStations
-                
          """).show();
 
         long count = spark.sql("""
-SELECT count(*) AS cnt
-FROM silverlayer.FireStations
-WHERE bucket_min = -1
-""").first().getLong(0);
+        SELECT count(*) AS cnt
+        FROM silverlayer.FireStations
+        WHERE bucket_min = -1
+        """).first().getLong(0);
 
         System.out.println("count = " + count);
         System.out.println("notIndexedRows count = " + notIndexedRows.count());
         System.out.println("indexedRows count = " + indexedRows.count());
-        System.out.println("previousIndexedRowsAffectedFromNewIndexing count = "
-                + previousIndexedRowsAffectedFromNewIndexing.count());
-        System.out.println("oldBordersForOldRecords = " + oldBordersForOldRecords.length);
-        System.out.println("newNeededBucketMinsForNewRecords = " + newNeededBucketMinsForNewRecords.length);
-        System.out.println("broadcastBorders = " + broadcastBorders);
-        System.out.println("broadcastBorders2 = " + broadcastBorders2);
-        System.out.println("oldBordersForOldRecords = " + oldBordersForOldRecords.length);
 
 
-
-
+        System.out.println("newNeededBucketMinsForNewRecords = " + Arrays.toString(newNeededBucketMinsForNewRecords));
+        System.out.println("oldBordersForOldRecords = " + collector.oldBordersForOldRecords.length);
+        System.out.println("oldBordersForOldRecords = " + Arrays.toString(collector.oldBordersForOldRecords));
+        System.out.println("updatesForOldRecords = " + collector.updatesForOldRecords.length);
+        System.out.println("updatesForOldRecords= " + Arrays.toString(collector.getupdatesForOldRecords()));
 
         return;
     }
@@ -172,7 +171,7 @@ WHERE bucket_min = -1
             System.out.println("Created new bucket for: " + bucketFile);
         }
 
-        BucketManager.BucketCollection result = BucketManager.addGeosToBuckets(geos, bucket, 2048);
+        BucketManager.BucketCollection result = BucketManager.addGeosToBuckets(geos, bucket, 512);
         bucket=result.getBucket();
         int[] oldBordersForOldRecords=result.getoldBordersForOldRecords().stream().mapToInt(Integer::intValue).toArray();
         int[] updatesForOldRecords=result.getupdatesForOldRecords().stream().mapToInt(Integer::intValue).toArray();

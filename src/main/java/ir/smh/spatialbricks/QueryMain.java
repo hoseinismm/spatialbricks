@@ -2,6 +2,7 @@ package ir.smh.spatialbricks;
 
 
 import ir.smh.spatialbricks.config.SparkConfig;
+import org.apache.iceberg.spark.Spark3Util;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
@@ -75,24 +76,27 @@ public class QueryMain {
 
 
         spark.sql("""
-SELECT *
-FROM spark_catalog.silverlayer.FireStations
-WHERE exists(
-  geometry.part,
-  p -> exists(p.coordinate, c -> c.x > -74)
-)
-
-
-""").show(false);
+                SELECT *
+                FROM spark_catalog.silverlayer.FireStations
+                WHERE exists(
+                  geometry.part,
+                  p -> exists(p.coordinate, c -> c.x > -74)
+                )
+        """).show(false);
 
         spark.sql("""          
-                SELECT count(*) AS silvercount
-                FROM spark_catalog.silverlayer.FireStations
+                SELECT count(*) AS silver
+                FROM  silverlayer.FireStations
                 WHERE geometry.PART[0].COORDINATE[0].x > -74.0
          """).show();
+        var table = Spark3Util.loadIcebergTable(
+                spark,
+                "silverlayer.FireStations"
+        );
+        System.out.println(table.schema());
 
 
-/*
+/*spark_catalog.silverlayer.FireStations
 
 
 
@@ -130,6 +134,8 @@ for (var manifest : snapshot.allManifests(table.io())) {
 
 
 //----------------------------
+
+
 
 
 

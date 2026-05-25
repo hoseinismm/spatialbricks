@@ -35,9 +35,9 @@ public class Main {
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
 
         etl3.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
-        AddIndexToSpatialData etl4 = new AddIndexToSpatialData(spark, options, adapter);
+        AddindexToSpatialData3 etl4 = new AddindexToSpatialData3(spark);
 
-        etl4.AddorUpdateIndex(silver);
+        etl4.AddOrUpdateIndex(silver,"Geometry.center.x","Geometry.center.y");
 
         //etl2.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_1_ndjson.json");
         //etl2.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_2_ndjson.json");

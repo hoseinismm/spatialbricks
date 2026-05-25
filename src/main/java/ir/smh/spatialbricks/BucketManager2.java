@@ -1,16 +1,13 @@
 package ir.smh.spatialbricks;
 
-import org.apache.hadoop.util.hash.Hash;
-
 import java.io.*;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-public class BucketManager {
+public class BucketManager2 {
     public static BucketCollection addGeosToBuckets(int[] newgeos, Bucket buckets, long MAX_SIZE) {
-        Set<Integer> oldBordersForOldRecords = new HashSet<>();
-        Set<Integer> updatesForOldRecords = new HashSet<>();
         Set<Integer> neededBucketMinsForNewRecords = new HashSet<>();
         BucketCollection result;
 
@@ -18,7 +15,6 @@ public class BucketManager {
                 //System.out.println("now: "+ geo  );
                 try {
                     boolean valid = true;
-                    boolean changeOfCurrentForThisGeo=false;
                     Bucket current = buckets;
                     if (bucketOutOfRange(geo, current)) {
                         System.out.println("*********this geo is out of range: "+geo);
@@ -33,75 +29,37 @@ public class BucketManager {
                             System.out.println("********a problem in your algorithm for:"+geo);
                             valid=false;
                             break;
-
                         }
                     }
                     if (!valid) continue;
-                    current.count++;
-                    if (current.countOfEveryGeo == null) {
-                        current.countOfEveryGeo = new int[current.max-current.min];
-                    }
-                    current.countOfEveryGeo[geo - current.min]++;
 
-                    int temp = current.min;
 
-                    while ((current.count > MAX_SIZE) && (current.max - current.min >= 2)) {
-                        changeOfCurrentForThisGeo=true;
+                    if ((current.count >= MAX_SIZE) && (current.max - current.min >= 2)) {
+
                         current.left = new Bucket(current.min, current.mid, 0L, current);
                         current.right = new Bucket(current.mid, current.max, 0L, current);
-                        current.hasChildren=true;
+                        current.hasChildren = true;
                         current.left.brother = current.right;
                         current.right.brother = current.left;
-
-                        int x= current.mid - current.min;
-                        int y= current.max - current.mid;
-
-                        current.left.countOfEveryGeo=new int[x];
-                        current.right.countOfEveryGeo=new int[y];
-
-                        updatesForOldRecords.add(current.right.min);
-
-
-                        System.arraycopy(current.countOfEveryGeo,0,current.left.countOfEveryGeo,0,x);
-                        System.arraycopy(current.countOfEveryGeo,x,current.right.countOfEveryGeo,0,x);
-
-                        current.left.count= sumOfArrayElements(current.left.countOfEveryGeo);
-                        current.right.count= sumOfArrayElements(current.right.countOfEveryGeo);
-
-                        current.countOfEveryGeo = null;
-                        current.count = 0L;
-
-                        if (current.left.count > MAX_SIZE) {
-                            current = current.left;
-                        } else if (current.right.count > MAX_SIZE) {
-                            current = current.right;
-                        } else  {
-                            break;
+                        if (geo < current.mid) {
+                            current.left.count++;
+                            neededBucketMinsForNewRecords.add(current.min);
                         }
-                    }
-                    if (changeOfCurrentForThisGeo) {
-                        oldBordersForOldRecords.add(temp);
+                        else {
+                            current.right.count++;
+                            neededBucketMinsForNewRecords.add(current.mid);
+                        }
+                    }  else {
+                        current.count++;
                     }
 
-                    // تعیین باکت موردنیاز برای geo فعلی
-                    if (current.count!=0) {
-                        neededBucketMinsForNewRecords.add(current.min);
-                    } else if (geo<current.mid) {
-                        neededBucketMinsForNewRecords.add(current.right.min);
-                    } else neededBucketMinsForNewRecords.add(current.left.min);
 
                 } catch (Exception e) {
                     System.err.println("Error processing this geo value: " + geo + " - " + e.getMessage());
                     e.printStackTrace();
                 }
             }
-
-            // حذف عناصر تکراری داخل لیست ها با تبدیل آنها به set و برگرداندن به لیست
-
-            updatesForOldRecords.addAll(oldBordersForOldRecords);
-
-
-            result=new BucketCollection(oldBordersForOldRecords,updatesForOldRecords,neededBucketMinsForNewRecords,buckets);
+            result=new BucketCollection(neededBucketMinsForNewRecords,buckets);
 
         return result;
     }
@@ -173,18 +131,16 @@ public class BucketManager {
         return buckets;
     }
 
-    // تجمیع باکت با باکتهای به روزرسانی شده در لیست مجزا برای به روز رسانی جدول قبلی
+
     public static class BucketCollection implements Serializable {
 
-        private Set<Integer> oldBordersForOldRecords;
-        private Set<Integer> updatesForOldRecords;
+
         private Set<Integer> neededBucketMinsForNewRecords;
 
         private Bucket bucket;
 
-        BucketCollection(Set<Integer> oldBordersForOldRecords, Set<Integer> updatesForOldRecords, Set<Integer> neededBucketMinsForNewRecords,  Bucket bucket) {
-            this.oldBordersForOldRecords=oldBordersForOldRecords;
-            this.updatesForOldRecords=updatesForOldRecords;
+        BucketCollection(Set<Integer> neededBucketMinsForNewRecords,  Bucket bucket) {
+
             this.neededBucketMinsForNewRecords=neededBucketMinsForNewRecords;
             this.bucket = bucket;
         }
@@ -193,20 +149,14 @@ public class BucketManager {
             return this;
         }
 
-        public Set<Integer> getupdatesForOldRecords() {
-            return updatesForOldRecords;
-        }
-
         public Set<Integer> getneededBucketMinsForNewRecords() {
             return neededBucketMinsForNewRecords;
         }
 
-        public Set<Integer> getoldBordersForOldRecords() {
-            return oldBordersForOldRecords;
-        }
         public Bucket getBucket() {
             return bucket;
         }
+
         public void setBucket(Bucket bucket) {
             this.bucket = bucket;
         }

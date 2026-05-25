@@ -1,26 +1,30 @@
 package ir.smh.spatialbricks;
+
 import ir.smh.spatialbricks.createsql.IcebergTableCreator;
 import ir.smh.spatialbricks.createsql.IcebergTableCreatorWithPartitioning;
 import ir.smh.spatialbricks.encoder.GeometryOptions;
 import ir.smh.spatialbricks.encoder.GeometryReader;
+import ir.smh.spatialbricks.encoder.udf.CoordinateToGeohashNumericUdfRegistry;
 import ir.smh.spatialbricks.encoder.udf.GeohashToIntegerUdfRegistry;
-import ir.smh.spatialbricks.encoder.udf.SparkUdfs;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.sedona.core.formatMapper.GeoJsonReader;
 import org.apache.sedona.sql.utils.Adapter;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.sql.*;
+import org.apache.spark.sql.Column;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.types.StructType;
-import java.io.File;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+
 import static org.apache.spark.sql.functions.*;
 
-public class SpatialWritingWithoutIndex implements Serializable {
+public class SpatialWritingWithoutIndex2 implements Serializable {
 
     private final SparkSession spark;
     private final GeometryOptions options;
@@ -28,7 +32,7 @@ public class SpatialWritingWithoutIndex implements Serializable {
 
 
 
-    public SpatialWritingWithoutIndex(SparkSession spark, GeometryOptions options, GeometryReader<?> adapter) {
+    public SpatialWritingWithoutIndex2(SparkSession spark, GeometryOptions options, GeometryReader<?> adapter) {
         this.spark = spark;
         this.options = options;
         this.adapter = adapter;
@@ -138,6 +142,8 @@ public class SpatialWritingWithoutIndex implements Serializable {
 
         registerUdfs();
 
+        CoordinateToGeohashNumericUdfRegistry.registerAll(spark);
+
         String geomCol = findGeometryColumn(df);
 
         Dataset<Row> transformed = df
@@ -167,12 +173,19 @@ public class SpatialWritingWithoutIndex implements Serializable {
 
         Dataset<Row> transformed = transform(df);
 
+        Dataset<Row> transformed = df
+                .withColumn("geometry",
+                        callUDF("stringOrGeomToGeometry", df.col(geomCol)))
+                .filter(col("geometry").isNotNull());
+
+
+
 
 
         if (!exists) {
             System.out.println("Now creating silver table with ID column...");
 
-            transformed = transformed.withColumn("id", monotonically_increasing_id());
+
 
 
             IcebergTableCreatorWithPartitioning.createIcebergTableFromSchema(
@@ -228,10 +241,33 @@ public class SpatialWritingWithoutIndex implements Serializable {
 
     private Dataset<Row> addGeohash(Dataset<Row> df) {
 
-        return df.withColumn(
-                "geohash_numeric",
-                callUDF("geohashToInteger", col("geometry"))
+        boolean hasCenter = false;
+        try {
+            df.select("geometry.center.x");
+            hasCenter = true;
+        } catch (Exception e) {
+            hasCenter = false;
+        }
+
+        Column partFallback = callUDF("CoordinateToGeohashNumeric",
+                col("geometry.part").getItem(0).getField("coordinate").getItem(0).getField("x"),
+                col("geometry.part").getItem(0).getField("coordinate").getItem(0).getField("y")
         );
+
+        Column computation;
+
+        if (hasCenter) {
+            computation = when(col("geometry.center").isNotNull(),
+                    callUDF("CoordinateToGeohashNumeric", col("geometry.center.x"), col("geometry.center.y")))
+                    .otherwise(partFallback);
+        } else {
+            computation = partFallback;
+        }
+
+        Dataset<Row> finalDf = df.withColumn("calculated_index", computation);
+
+        return finalDf;
+
     }
 }
 

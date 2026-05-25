@@ -1,71 +1,88 @@
 package ir.smh.spatialbricks.decoder;
 
-import org.apache.spark.sql.api.java.UDF1;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
 import org.locationtech.jts.geom.*;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class GeometryDecoder {
 
     private static final GeometryFactory geometryFactory = new GeometryFactory();
 
-    public static void registerDecoderUDF(SparkSession spark) {
-        UDF1<Row, Geometry> structToGeometry = (Row row) -> {
-            if (row == null) return null;
+    public static Geometry rowToGeometry(Row row) {
 
-            try {
-                int type = row.getInt(row.fieldIndex("type"));
-                List<Row> parts = row.getList(row.fieldIndex("part"));
+        if (row == null) return null;
 
-                switch (type) {
-                    case 1: // POINT
-                        // دسترسی به part اول
-                        Row part0 = parts.get(0);
+        int type = row.getInt(row.fieldIndex("type"));
 
-                        // گرفتن لیست مختصات از درون part
-                        List<Row> coordinates = part0.getList(part0.fieldIndex("coordinate"));
+        List<?> rawParts = row.getList(row.fieldIndex("part"));
 
-                        // اولین مختصات (x, y)
-                        Row coord = coordinates.get(0);
+        List<Row> parts = new ArrayList<>();
+        for (Object o : rawParts) {
+            parts.add((Row) o);
+        }
 
-                        double x = coord.getDouble(coord.fieldIndex("x"));
-                        double y = coord.getDouble(coord.fieldIndex("y"));
+        switch (type) {
 
-                        return geometryFactory.createPoint(new Coordinate(x, y));
+            case 1: // POINT
+                Row part = parts.get(0);
 
-                    case 2: // LINESTRING
-                        List<Row> coords = parts.get(0).getList(0); // فقط یک part برای خط
-                        Coordinate[] lineCoords = coords.stream()
-                                .map(r -> new Coordinate(r.getDouble(r.fieldIndex("x")), r.getDouble(r.fieldIndex("y"))))
-                                .toArray(Coordinate[]::new);
-                        return geometryFactory.createLineString(lineCoords);
+                List<?> rawCoords = part.getList(part.fieldIndex("coordinate"));
+                Row coord = (Row) rawCoords.get(0);
 
-                    case 3: // POLYGON
-                        // ممکن است چند part برای حلقه‌ها (exterior + interiors) داشته باشد
-                        LinearRing shell = null;
-                        LinearRing[] holes = new LinearRing[parts.size() - 1];
-                        for (int i = 0; i < parts.size(); i++) {
-                            List<Row> ringCoords = parts.get(i).getList(0);
-                            Coordinate[] coordsArr = ringCoords.stream()
-                                    .map(r -> new Coordinate(r.getDouble(r.fieldIndex("x")), r.getDouble(r.fieldIndex("y"))))
-                                    .toArray(Coordinate[]::new);
-                            LinearRing ring = geometryFactory.createLinearRing(coordsArr);
-                            if (i == 0) shell = ring;
-                            else holes[i - 1] = ring;
-                        }
-                        return geometryFactory.createPolygon(shell, holes);
+                double x = coord.getDouble(coord.fieldIndex("x"));
+                double y = coord.getDouble(coord.fieldIndex("y"));
 
-                    default:
-                        throw new IllegalArgumentException("Unsupported geometry type: " + type);
+                return geometryFactory.createPoint(new Coordinate(x, y));
+
+            case 2: // LINESTRING
+                Row linePart = parts.get(0);
+                List<?> rawLineCoords = linePart.getList(linePart.fieldIndex("coordinate"));
+
+                Coordinate[] lineCoords = new Coordinate[rawLineCoords.size()];
+
+                for (int i = 0; i < rawLineCoords.size(); i++) {
+                    Row c = (Row) rawLineCoords.get(i);
+                    lineCoords[i] = new Coordinate(
+                            c.getDouble(c.fieldIndex("x")),
+                            c.getDouble(c.fieldIndex("y"))
+                    );
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-                return null;
-            }
-        };
 
-        spark.udf().register("decodeGeometry", structToGeometry, org.apache.spark.sql.types.DataTypes.BinaryType);
+                return geometryFactory.createLineString(lineCoords);
+
+            case 3: // POLYGON
+
+                LinearRing shell = null;
+                LinearRing[] holes = new LinearRing[Math.max(0, parts.size() - 1)];
+
+                for (int i = 0; i < parts.size(); i++) {
+
+                    Row ringPart = parts.get(i);
+                    List<?> rawRingCoords = ringPart.getList(ringPart.fieldIndex("coordinate"));
+
+                    Coordinate[] ringCoords = new Coordinate[rawRingCoords.size()];
+
+                    for (int j = 0; j < rawRingCoords.size(); j++) {
+                        Row c = (Row) rawRingCoords.get(j);
+                        ringCoords[j] = new Coordinate(
+                                c.getDouble(c.fieldIndex("x")),
+                                c.getDouble(c.fieldIndex("y"))
+                        );
+                    }
+
+                    LinearRing ring = geometryFactory.createLinearRing(ringCoords);
+
+                    if (i == 0)
+                        shell = ring;
+                    else
+                        holes[i - 1] = ring;
+                }
+
+                return geometryFactory.createPolygon(shell, holes);
+
+            default:
+                throw new IllegalArgumentException("Unsupported geometry type: " + type);
+        }
     }
 }
