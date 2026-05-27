@@ -81,18 +81,9 @@ public class AddIndexToSpatialData4 implements Serializable {
         System.out.println("count = " + count);
         System.out.println("notIndexedRows count = " + notIndexedRows.count());
 
-
-
         System.out.println("newNeededBucketMinsForNewRecords = " + Arrays.toString(neededBucketMinsForNewRecords));
-
-
-
-
 
         return;
     }
-
-
-
 
 }

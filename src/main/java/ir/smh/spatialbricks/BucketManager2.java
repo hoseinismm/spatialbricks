@@ -5,158 +5,85 @@ import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class BucketManager2 {
-    public static BucketCollection addGeosToBuckets(int[] newgeos, Bucket buckets, long MAX_SIZE) {
+    public static Bucket addGeosToBuckets(int[] newgeos, Bucket buckets, long MAX_SIZE) {
 
         long effectiveMaxSize = (MAX_SIZE < 1) ? 1L : MAX_SIZE;
-
-        Set<Integer> neededBucketBorderForNewRecords = new HashSet<>();
-
-        BucketCollection result;
-        Integer geohash=null;
 
             try {
 
                 for (int geo : newgeos) {
-                    geohash=geo;
+
                     //System.out.println("now: "+ geo  );
 
-                    boolean valid = true;
                     Bucket current = buckets;
                     if (bucketOutOfRange(geo, current)) {
                         System.out.println("*********this geo is out of range: " + geo);
                         continue;
                     }
 
-                    while (true) {
-                        if (geo >= current.mid ) {
-                            if (current.hasRightChildren) {
-                                current = current.right;
-                            } else {
-                                break;
-                            }
-
-                        } else  {
-                            if (current.hasLeftChildren) {
-                                current = current.left;
-                            } else {
-                                break;
-                            }
+                    while (current.hasChildren) {
+                        if (geo >= current.mid) {
+                            current = current.right;
+                        } else {
+                            current = current.left;
                         }
                     }
 
-                    if (!valid) continue;
-
                     if ((current.count >= effectiveMaxSize) && (current.max - current.min >= 2)) {
 
+                        current.createChild();
+                        current.hasChildren = true;
+
                         if (geo < current.mid) {
-                            current.createLeftChild();
-                            current.hasLeftChildren = true;
                             current = current.left;
                         } else {
-                            current.createRightChild();
-                            current.hasRightChildren = true;
                             current = current.right;
                         }
                     }
                     current.count++;
-                    neededBucketBorderForNewRecords.add(current.min);
-                    neededBucketBorderForNewRecords.add(current.max);
                 }
             }
             catch (Exception e) {
-                    System.err.println("Error processing this geo value: " + geohash + " - " + e.getMessage());
+                    System.err.println("Error processing geo values: "  + e.getMessage());
                     e.printStackTrace();
                 }
-
-            result=new BucketCollection(neededBucketBorderForNewRecords,buckets);
-
-        return result;
+        return buckets;
     }
-    public static class BucketCollection implements Serializable {
-
-
-        final private Set<Integer> neededBucketBorderForNewRecords;
-
-        private Bucket bucket;
-
-        BucketCollection(Set<Integer> neededBucketMinsForNewRecords,  Bucket bucket) {
-
-            this.neededBucketBorderForNewRecords=neededBucketMinsForNewRecords;
-            this.bucket = bucket;
-        }
-
-        public BucketCollection getBucketCollection() {
-            return this;
-        }
-
-        public Set<Integer> getneededBucketBorderForNewRecords() {
-            return neededBucketBorderForNewRecords;
-        }
-
-        public Bucket getBucket() {
-            return bucket;
-        }
-
-        public void setBucket(Bucket bucket) {
-            this.bucket = bucket;
-        }
-
-    }
-
-
-
 
 public static class Bucket implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    int min;
-    int max;
-    int mid;
-    long count;
-    Bucket brother;
-    Bucket parent;
-    Bucket right;
-    Bucket left;
-    boolean hasLeftChildren;
-    boolean hasRightChildren;
+        int min;
+        int max;
+        int mid;
+        long count;
+        Bucket right;
+        Bucket left;
+        boolean hasChildren;
 
-    Bucket(int min, int max, long count, Bucket parent) {
-        this.parent = parent;
+
+    Bucket(int min, int max, long count) {
+
         this.min = min;
         this.max = max;
         this.count = count; // رفرنس منتقل می‌شود
         this.mid = min + (max - min) / 2;
-        this.hasLeftChildren = false;
-        this.hasRightChildren = false;
+        this.hasChildren = false;
+
     }
 
-    Bucket(int min, int max, long count) {
-        this.min = min;
-        this.max = max;
-        this.count = count;
-        this.mid = min + (max - min) / 2;
-        this.hasLeftChildren = false;
-        this.hasRightChildren = false;
+    public void createChild() {
+        this.left = new Bucket(this.min, this.mid, 0L);
+        this.right = new Bucket(this.mid, this.max, 0L);
+        this.hasChildren = true;
     }
 
 
-    public void createLeftChild() {
-        this.left = new Bucket(this.min, this.mid, 0L, this);
-        this.hasLeftChildren = true;
-    }
-
-    public void createRightChild() {
-        this.right = new Bucket(this.mid, this.max, 0L, this);
-        this.hasRightChildren = true;
-    }
 
 
     public void incrementCount() {
@@ -195,10 +122,9 @@ public static class Bucket implements Serializable {
     private static Bucket splitbucket(Bucket bucket) {
         if (bucket.max-bucket.min>1048576) {
             //System.out.println(bucket.min+"  "+bucket.max+" "+bucket.mid);
-            bucket.left = new Bucket(bucket.min, bucket.mid, 0L, bucket);
-            bucket.hasLeftChildren = true;
-            bucket.right = new Bucket(bucket.mid, bucket.max, 0L, bucket);
-            bucket.hasRightChildren=true;
+            bucket.left = new Bucket(bucket.min, bucket.mid, 0L);
+            bucket.right = new Bucket(bucket.mid, bucket.max, 0L);
+            bucket.hasChildren = true;
             splitbucket(bucket.left);
             splitbucket(bucket.right);
         }
@@ -228,6 +154,7 @@ public static class Bucket implements Serializable {
         return geo < bucket.min || geo >= bucket.max;
     }
 
+
     public static int[] computeBucketBorders(Dataset<Row> df, String bucketFile) { // اضافه کردن ورودی نام فایل
         List<Integer> list = df
                 .select("geohash_numeric")
@@ -235,30 +162,32 @@ public static class Bucket implements Serializable {
                 .collectAsList();
 
         int[] geos = list.stream().mapToInt(Integer::intValue).toArray();
-        BucketManager2.Bucket bucket;
+        Bucket bucket;
 
         File f = new File(bucketFile);
 
         if (f.exists()) {
-            bucket = BucketManager2.loadBucket(bucketFile);
+            bucket = loadBucket(bucketFile);
             System.out.println("Bucket loaded from: " + bucketFile);
-            if (bucket == null) bucket = BucketManager2.initialBucket();
+            if (bucket == null) bucket = initialBucket();
         } else {
-            bucket = BucketManager2.initialBucket();
+            bucket = initialBucket();
             System.out.println("Created new bucket for: " + bucketFile);
         }
 
-        BucketManager2.BucketCollection result = BucketManager2.addGeosToBuckets(geos, bucket, 512);
-        bucket=result.getBucket();
+        Bucket newBucketsAfterAddingGeos = addGeosToBuckets(geos, bucket, 512);
 
+        List<Integer> borders = List.of(newBucketsAfterAddingGeos.max);
 
-        int[] neededBucketMinsForNewRecords=result.getneededBucketBorderForNewRecords().stream().mapToInt(Integer::intValue).toArray();
+        List<Integer> ListOfBorders = extractMinBordersFromBucket(newBucketsAfterAddingGeos, borders);
 
-        BucketManager2.saveBucket(bucket, bucketFile);
-        Arrays.sort(neededBucketMinsForNewRecords);
+        int[] array = ListOfBorders.stream()
+                .mapToInt(i -> i)
+                .toArray();
 
+        saveBucket(newBucketsAfterAddingGeos, bucketFile);
 
-        return  neededBucketMinsForNewRecords;
+        return  array;
     }
 
 
@@ -278,14 +207,12 @@ public static class Bucket implements Serializable {
     private static void updateBucket(Bucket node, int floor, int ceiling, long count) {
         if (node == null) return;
 
-        // اگر باکت هدف پیدا شد
-        if (node.min == floor && node.max == ceiling) {
 
+        if (node.min == floor && node.max == ceiling) {
             node.count=count;
             return;
         }
 
-        // پیمایش درخت بر اساس منطق باینری
         if (ceiling <= node.mid) {
             updateBucket(node.left, floor, ceiling, count);
         } else if (floor >= node.mid) {
@@ -293,7 +220,16 @@ public static class Bucket implements Serializable {
         }
     }
 
-
+    public static List<Integer> extractMinBordersFromBucket(Bucket bucket, List<Integer> borders) {
+        if (bucket.hasChildren) {
+            extractMinBordersFromBucket(bucket.left,borders);
+            extractMinBordersFromBucket(bucket.right,borders);
+        }
+        else {
+            borders.add(bucket.min);
+        }
+        return  borders;
+    }
 }
 
 

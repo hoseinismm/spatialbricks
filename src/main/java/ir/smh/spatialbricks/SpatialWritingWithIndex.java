@@ -161,9 +161,9 @@ public class SpatialWritingWithIndex implements Serializable {
                 col("geohash_numeric").isNotNull()
         );
 
-        int[] neededBucketBorderForNewRecords = BucketManager2.computeBucketBorders(transformed, bucketFileName);
+        int[] BucketBorderForNewRecords = BucketManager2.computeBucketBorders(transformed, bucketFileName);
 
-        Broadcast<int[]> broadcastBorders2 = jsc.broadcast(neededBucketBorderForNewRecords);
+        Broadcast<int[]> broadcastBorders2 = jsc.broadcast(BucketBorderForNewRecords);
 
         SparkUdfs.registerFindFloorUdf(spark, broadcastBorders2);
 
