@@ -53,6 +53,8 @@ public class SpatialWritingWithIndex implements Serializable {
         writeBronze(bronze, df);
 
         writeSilver(silver,jsc, df);
+
+        updateBucket(silver);
     }
 
     // ---------------------------
@@ -142,7 +144,6 @@ public class SpatialWritingWithIndex implements Serializable {
 
     private Dataset<Row> transform(Dataset<Row> df,String bucketFileName, JavaSparkContext jsc) {
 
-
         registerUdfs();
 
         CoordinateToGeohashNumericUdfRegistry.registerAll(spark);
@@ -160,22 +161,22 @@ public class SpatialWritingWithIndex implements Serializable {
                 col("geohash_numeric").isNotNull()
         );
 
+        int[] neededBucketBorderForNewRecords = BucketManager2.computeBucketBorders(transformed, bucketFileName);
 
-        int[] neededBucketMinsForNewRecords = BucketManager2.computeBucketBorders(transformed, bucketFileName);
-
-        Broadcast<int[]> broadcastBorders2 = jsc.broadcast(neededBucketMinsForNewRecords);
+        Broadcast<int[]> broadcastBorders2 = jsc.broadcast(neededBucketBorderForNewRecords);
 
         SparkUdfs.registerFindFloorUdf(spark, broadcastBorders2);
 
         transformed = transformed.withColumn(
-                "bucket_min",
-                callUDF("findFloor", col("geohash_numeric"))
+                "bounds",
+                callUDF("findFloorAndCeiling", col("geohash_numeric"))
         );
 
-
-
-
-
+        /*transformed = transformed
+                .withColumn("floor_val", col("bounds.floor"))
+                .withColumn("ceiling_val", col("bounds.ceiling"))
+                .drop("bounds");
+                */
         return transformed;
     }
 
@@ -196,22 +197,14 @@ public class SpatialWritingWithIndex implements Serializable {
 
         if (!exists) {
             System.out.println("Now creating silver table with ID column...");
-
             IcebergTableCreatorWithPartitioning.createIcebergTableFromSchema(
                     spark,
                     transformed.schema(),
                     silver.database(),
                     silver.table(),
-                    List.of("identity(bucket_min)")
+            List.of("identity(bounds.floor)", "identity(bounds.ceiling)")
             );
         } else {
-
-            long maxId = spark.read().format("iceberg").load(fullName)
-                    .agg(max("id").as("my_max"))
-                    .first()
-                    .getAs("my_max");
-
-            transformed = transformed.withColumn("id", monotonically_increasing_id().plus(maxId + 1));
 
             StructType tableSchema = spark.table(fullName).schema();
 
@@ -224,10 +217,35 @@ public class SpatialWritingWithIndex implements Serializable {
 
         }
 
-
-
         transformed.writeTo(fullName).append();
         System.out.println("Data appended to silver layer");
+
+
+    }
+
+    private void updateBucket (TableSpec silver) {
+        String metadataTable = silver.database() + "." + silver.table() + ".partitions";
+
+        String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
+
+        Dataset<Row> stats = spark.read()
+                .table(metadataTable)
+                .select(
+
+                        col("partition.floor_val").as("floor_val"),
+                        col("partition.ceiling_val").as("ceiling_val"),
+                        col("record_count")
+                )
+
+                .groupBy("floor_val", "ceiling_val")
+                .agg(sum("record_count").as("total_count"));
+
+        List<Row> partitionStats = stats.collectAsList();
+
+        BucketManager2.Bucket bucket=BucketManager2.loadBucket(bucketFileName);
+
+        BucketManager2.updateTreeFromStats(partitionStats, bucket);
+
     }
 
 

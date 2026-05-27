@@ -12,12 +12,12 @@ import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-public class BucketManager2 {
+public class BucketManager4 {
     public static BucketCollection addGeosToBuckets(int[] newgeos, Bucket buckets, long MAX_SIZE) {
 
         long effectiveMaxSize = (MAX_SIZE < 1) ? 1L : MAX_SIZE;
 
-        Set<Integer> neededBucketBorderForNewRecords = new HashSet<>();
+        Set<Integer> neededBucketMinsForNewRecords = new HashSet<>();
 
         BucketCollection result;
         Integer geohash=null;
@@ -36,14 +36,14 @@ public class BucketManager2 {
                     }
 
                     while (true) {
-                        if (geo >= current.mid ) {
+                        if (geo >= current.mid && geo < current.max) {
                             if (current.hasRightChildren) {
                                 current = current.right;
                             } else {
                                 break;
                             }
 
-                        } else  {
+                        } else if (geo < current.mid && geo >= current.min) {
                             if (current.hasLeftChildren) {
                                 current = current.left;
                             } else {
@@ -54,21 +54,25 @@ public class BucketManager2 {
 
                     if (!valid) continue;
 
-                    if ((current.count >= effectiveMaxSize) && (current.max - current.min >= 2)) {
+
+
+                    if ((current.count.value >= effectiveMaxSize) && (current.max - current.min >= 2)) {
 
                         if (geo < current.mid) {
-                            current.createLeftChild();
+                            current.createLeftChild(MAX_SIZE);
                             current.hasLeftChildren = true;
                             current = current.left;
                         } else {
-                            current.createRightChild();
+                            current.createRightChild(MAX_SIZE);
+
                             current.hasRightChildren = true;
                             current = current.right;
+
+                            break;
                         }
                     }
-                    current.count++;
-                    neededBucketBorderForNewRecords.add(current.min);
-                    neededBucketBorderForNewRecords.add(current.max);
+                    current.count.value++;
+                    neededBucketMinsForNewRecords.add(current.min);
                 }
             }
             catch (Exception e) {
@@ -76,20 +80,39 @@ public class BucketManager2 {
                     e.printStackTrace();
                 }
 
-            result=new BucketCollection(neededBucketBorderForNewRecords,buckets);
+            result=new BucketCollection(neededBucketMinsForNewRecords,buckets);
 
         return result;
     }
+
+
+    public static Bucket removeGeosFromBuckets(int removedgeos, Bucket buckets, int bucket_min) {
+
+                try {
+
+
+
+
+                } catch (Exception e) {
+                    System.err.println("Error processing this geo value for removal: " + geo + " - " + e.getMessage());
+                    e.printStackTrace();
+                }
+
+
+        return buckets;
+    }
+
+
     public static class BucketCollection implements Serializable {
 
 
-        final private Set<Integer> neededBucketBorderForNewRecords;
+        private Set<Integer> neededBucketMinsForNewRecords;
 
         private Bucket bucket;
 
         BucketCollection(Set<Integer> neededBucketMinsForNewRecords,  Bucket bucket) {
 
-            this.neededBucketBorderForNewRecords=neededBucketMinsForNewRecords;
+            this.neededBucketMinsForNewRecords=neededBucketMinsForNewRecords;
             this.bucket = bucket;
         }
 
@@ -97,8 +120,8 @@ public class BucketManager2 {
             return this;
         }
 
-        public Set<Integer> getneededBucketBorderForNewRecords() {
-            return neededBucketBorderForNewRecords;
+        public Set<Integer> getneededBucketMinsForNewRecords() {
+            return neededBucketMinsForNewRecords;
         }
 
         public Bucket getBucket() {
@@ -111,7 +134,10 @@ public class BucketManager2 {
 
     }
 
-
+public static class Counter implements Serializable {
+    public long value;
+    public Counter(long value) { this.value = value; }
+}
 
 
 public static class Bucket implements Serializable {
@@ -120,7 +146,8 @@ public static class Bucket implements Serializable {
     int min;
     int max;
     int mid;
-    long count;
+    long capacity=65536L;
+    Counter count;
     Bucket brother;
     Bucket parent;
     Bucket right;
@@ -128,7 +155,7 @@ public static class Bucket implements Serializable {
     boolean hasLeftChildren;
     boolean hasRightChildren;
 
-    Bucket(int min, int max, long count, Bucket parent) {
+    Bucket(int min, int max, Counter count, Long capacity, Bucket parent,) {
         this.parent = parent;
         this.min = min;
         this.max = max;
@@ -136,31 +163,23 @@ public static class Bucket implements Serializable {
         this.mid = min + (max - min) / 2;
         this.hasLeftChildren = false;
         this.hasRightChildren = false;
-    }
-
-    Bucket(int min, int max, long count) {
-        this.min = min;
-        this.max = max;
-        this.count = count;
-        this.mid = min + (max - min) / 2;
-        this.hasLeftChildren = false;
-        this.hasRightChildren = false;
+        this.capacity = capacity;
     }
 
 
-    public void createLeftChild() {
-        this.left = new Bucket(this.min, this.mid, 0L, this);
+    public void createLeftChild(Long capacity) {
+        this.left = new Bucket(this.min, this.mid, this.count,capacity, this);
         this.hasLeftChildren = true;
     }
 
-    public void createRightChild() {
-        this.right = new Bucket(this.mid, this.max, 0L, this);
+    public void createRightChild(Long capacity) {
+        this.right = new Bucket(this.mid, this.max, new Counter(0L),capacity, this);
         this.hasRightChildren = true;
     }
 
 
     public void incrementCount() {
-        this.count++;
+        this.count.value++;
     }
 }
 
@@ -196,9 +215,9 @@ public static class Bucket implements Serializable {
         if (bucket.max-bucket.min>1048576) {
             //System.out.println(bucket.min+"  "+bucket.max+" "+bucket.mid);
             bucket.left = new Bucket(bucket.min, bucket.mid, 0L, bucket);
-            bucket.hasLeftChildren = true;
+
             bucket.right = new Bucket(bucket.mid, bucket.max, 0L, bucket);
-            bucket.hasRightChildren=true;
+            bucket.hasChildren=true;
             splitbucket(bucket.left);
             splitbucket(bucket.right);
         }
@@ -235,62 +254,30 @@ public static class Bucket implements Serializable {
                 .collectAsList();
 
         int[] geos = list.stream().mapToInt(Integer::intValue).toArray();
-        BucketManager2.Bucket bucket;
+        BucketManager4.Bucket bucket;
 
         File f = new File(bucketFile);
 
         if (f.exists()) {
-            bucket = BucketManager2.loadBucket(bucketFile);
+            bucket = BucketManager4.loadBucket(bucketFile);
             System.out.println("Bucket loaded from: " + bucketFile);
-            if (bucket == null) bucket = BucketManager2.initialBucket();
+            if (bucket == null) bucket = BucketManager4.initialBucket();
         } else {
-            bucket = BucketManager2.initialBucket();
+            bucket = BucketManager4.initialBucket();
             System.out.println("Created new bucket for: " + bucketFile);
         }
 
-        BucketManager2.BucketCollection result = BucketManager2.addGeosToBuckets(geos, bucket, 512);
+        BucketManager4.BucketCollection result = BucketManager4.addGeosToBuckets(geos, bucket, 512);
         bucket=result.getBucket();
 
 
-        int[] neededBucketMinsForNewRecords=result.getneededBucketBorderForNewRecords().stream().mapToInt(Integer::intValue).toArray();
+        int[] neededBucketMinsForNewRecords=result.getneededBucketMinsForNewRecords().stream().mapToInt(Integer::intValue).toArray();
 
-        BucketManager2.saveBucket(bucket, bucketFile);
+        BucketManager4.saveBucket(bucket, bucketFile);
         Arrays.sort(neededBucketMinsForNewRecords);
 
 
         return  neededBucketMinsForNewRecords;
-    }
-
-
-    public static void updateTreeFromStats(List<Row> rows, Bucket root) {
-        for (Row row : rows) {
-            // توجه: آیس‌برگ اعداد را در متادیتا ممکن است Long برگرداند
-            Integer f = row.getAs("floor_val");
-            Integer c = row.getAs("ceiling_val");
-            Long count = row.getAs("total_count");
-
-            if (f != null && c != null) {
-                updateBucket(root, f, c, count);
-            }
-        }
-    }
-
-    private static void updateBucket(Bucket node, int floor, int ceiling, long count) {
-        if (node == null) return;
-
-        // اگر باکت هدف پیدا شد
-        if (node.min == floor && node.max == ceiling) {
-
-            node.count=count;
-            return;
-        }
-
-        // پیمایش درخت بر اساس منطق باینری
-        if (ceiling <= node.mid) {
-            updateBucket(node.left, floor, ceiling, count);
-        } else if (floor >= node.mid) {
-            updateBucket(node.right, floor, ceiling, count);
-        }
     }
 
 
