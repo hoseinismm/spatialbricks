@@ -157,7 +157,7 @@ public static class Bucket implements Serializable {
 
     public static int[] computeBucketBorders(Dataset<Row> df, String bucketFile) { // اضافه کردن ورودی نام فایل
         List<Integer> list = df
-                .select("geohash_numeric")
+                .select("calculated_index")
                 .as(Encoders.INT())
                 .collectAsList();
 
@@ -177,9 +177,11 @@ public static class Bucket implements Serializable {
 
         Bucket newBucketsAfterAddingGeos = addGeosToBuckets(geos, bucket, 512);
 
-        List<Integer> borders = List.of(newBucketsAfterAddingGeos.max);
+        List<Integer> borders = new ArrayList<>();
 
         List<Integer> ListOfBorders = extractMinBordersFromBucket(newBucketsAfterAddingGeos, borders);
+
+        ListOfBorders.add(newBucketsAfterAddingGeos.max);
 
         int[] array = ListOfBorders.stream()
                 .mapToInt(i -> i)
@@ -193,7 +195,7 @@ public static class Bucket implements Serializable {
 
     public static void updateTreeFromStats(List<Row> rows, Bucket root) {
         for (Row row : rows) {
-            // توجه: آیس‌برگ اعداد را در متادیتا ممکن است Long برگرداند
+
             Integer f = row.getAs("floor_val");
             Integer c = row.getAs("ceiling_val");
             Long count = row.getAs("total_count");

@@ -20,44 +20,34 @@ import java.util.*;
 
 public class UDFRegistry {
 
-    public static void registerAll(SparkSession spark, GeometryOptions options, GeometryReader adapter) {
+    public static void registerAll(SparkSession spark, GeometryReader adapter) {
 
         StructType coordType = new StructType()
                 .add("x", DataTypes.DoubleType, false)
                 .add("y", DataTypes.DoubleType, false);
 
         StructType partType = new StructType()
-                .add("coordinate", DataTypes.createArrayType(coordType));
-
-        List<StructField> fields = new ArrayList<>();
-        fields.add(DataTypes.createStructField("type", DataTypes.IntegerType, true));
-        fields.add(DataTypes.createStructField("part", DataTypes.createArrayType(partType), true));
+                .add("coordinates", DataTypes.createArrayType(coordType));
 
         StructType bboxType = new StructType()
-                .add("minx", DataTypes.DoubleType)
-                .add("miny", DataTypes.DoubleType)
-                .add("maxx", DataTypes.DoubleType)
-                .add("maxy", DataTypes.DoubleType);
-        StructType centerType = new StructType()
-                .add("x", DataTypes.DoubleType)
-                .add("y", DataTypes.DoubleType);
+                .add("min_x", DataTypes.DoubleType)
+                .add("min_y", DataTypes.DoubleType)
+                .add("max_x", DataTypes.DoubleType)
+                .add("max_y", DataTypes.DoubleType);
+
+        StructType geometryType = new StructType()
+                .add("type", DataTypes.IntegerType, false)
+                .add("parts", DataTypes.createArrayType(partType), false)
+                .add(DataTypes.createStructField("bbox", bboxType, true))
+                .add(DataTypes.createStructField("center", coordType, true))
+                .add(DataTypes.createStructField("area", DataTypes.DoubleType, true))
+                .add(DataTypes.createStructField("startpoint", coordType, true))
+                .add(DataTypes.createStructField("endpoint", coordType, true))
+                .add(DataTypes.createStructField("geohash", DataTypes.StringType, true));
 
 
-        if (options.has("bbox"))
-            fields.add(DataTypes.createStructField("bbox", bboxType, true));
-        if (options.has("center"))
-            fields.add(DataTypes.createStructField("center", centerType, true));
-        if (options.has("area"))
-            fields.add(DataTypes.createStructField("area", DataTypes.DoubleType, true));
-        if (options.has("startpoint"))
-            fields.add(DataTypes.createStructField("startpoint", coordType, true));
-        if (options.has("endpoint"))
-            fields.add(DataTypes.createStructField("endpoint", coordType, true));
-        if (options.has("geohash")) {
-            fields.add(DataTypes.createStructField("geohash", DataTypes.StringType, true));
-        }
 
-        StructType geometryType = new StructType(fields.toArray(new StructField[0]));
+
 
         UDF1<Object, Row> stringOrGeomToGeometry = (Object input) -> {
             try {

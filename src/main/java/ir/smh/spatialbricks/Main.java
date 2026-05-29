@@ -28,16 +28,15 @@ public class Main {
 
         //SpatialETL etl = new SpatialETL(spark, options, adapter);
 
-        SpatialWritingWithoutIndex etl3= new SpatialWritingWithoutIndex(spark, options, adapter);
-
+        SpatialWritingWithIndex etl3= new SpatialWritingWithIndex(spark, options, adapter);
 
         TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
 
         etl3.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
-        AddindexToSpatialData3 etl4 = new AddindexToSpatialData3(spark);
 
-        etl4.AddOrUpdateIndex(silver,"Geometry.center.x","Geometry.center.y");
+
+
 
         //etl2.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_1_ndjson.json");
         //etl2.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_2_ndjson.json");

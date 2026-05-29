@@ -158,18 +158,18 @@ public class SpatialWritingWithIndex implements Serializable {
         transformed = addGeohash(transformed);
 
         transformed = transformed.filter(
-                col("geohash_numeric").isNotNull()
+                col("calculated_index").isNotNull()
         );
 
         int[] BucketBorderForNewRecords = BucketManager2.computeBucketBorders(transformed, bucketFileName);
 
-        Broadcast<int[]> broadcastBorders2 = jsc.broadcast(BucketBorderForNewRecords);
+        Broadcast<int[]> broadcastBorders = jsc.broadcast(BucketBorderForNewRecords);
 
-        SparkUdfs.registerFindFloorUdf(spark, broadcastBorders2);
+        SparkUdfs.registerFindFloorAndCeilingUdf(spark, broadcastBorders);
 
         transformed = transformed.withColumn(
                 "bounds",
-                callUDF("findFloorAndCeiling", col("geohash_numeric"))
+                callUDF("findFloorAndCeiling", col("calculated_index"))
         );
 
         /*transformed = transformed
@@ -195,6 +195,8 @@ public class SpatialWritingWithIndex implements Serializable {
 
         Dataset<Row> transformed = transform(df, bucketFileName, jsc );
 
+        transformed.printSchema();
+
         if (!exists) {
             System.out.println("Now creating silver table with ID column...");
             IcebergTableCreatorWithPartitioning.createIcebergTableFromSchema(
@@ -207,6 +209,7 @@ public class SpatialWritingWithIndex implements Serializable {
         } else {
 
             StructType tableSchema = spark.table(fullName).schema();
+
 
             if (!tableSchema.sameType(transformed.schema())) {
                 throw new RuntimeException(
@@ -228,14 +231,15 @@ public class SpatialWritingWithIndex implements Serializable {
 
         String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
 
+
         Dataset<Row> stats = spark.read()
                 .table(metadataTable)
                 .select(
-
-                        col("partition.floor_val").as("floor_val"),
-                        col("partition.ceiling_val").as("ceiling_val"),
+                        col("partition.`bounds.floor`").as("floor_val"),
+                        col("partition.`bounds.ceiling`").as("ceiling_val"),
                         col("record_count")
                 )
+
 
                 .groupBy("floor_val", "ceiling_val")
                 .agg(sum("record_count").as("total_count"));

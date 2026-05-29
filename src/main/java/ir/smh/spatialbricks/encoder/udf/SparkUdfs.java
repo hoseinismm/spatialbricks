@@ -11,7 +11,7 @@ import java.util.Arrays;
 
 public class SparkUdfs {
 
-        public static void registerFindFloorUdf(
+        public static void registerFindFloorAndCeilingUdf(
                 SparkSession spark,
                 Broadcast<int[]> broadcastBorders
         ) {

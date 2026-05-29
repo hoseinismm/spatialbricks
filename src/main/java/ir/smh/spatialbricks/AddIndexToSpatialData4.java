@@ -56,7 +56,7 @@ public class AddIndexToSpatialData4 implements Serializable {
 
         Broadcast<int[]> broadcastBorders2 = jsc.broadcast(neededBucketMinsForNewRecords);
 
-        SparkUdfs.registerFindFloorUdf(spark, broadcastBorders2);
+        SparkUdfs.registerFindFloorAndCeilingUdf(spark, broadcastBorders2);
 
         notIndexedRows = notIndexedRows.withColumn(
                 "bucket_min",
