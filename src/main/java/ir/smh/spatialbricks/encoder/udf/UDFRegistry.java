@@ -1,7 +1,5 @@
 package ir.smh.spatialbricks.encoder.udf;
 
-import ir.smh.spatialbricks.encoder.GeometryResult;
-import ir.smh.spatialbricks.encoder.GeometryOptions;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.WKBReaderAdapter;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.WKTReaderAdapter;
@@ -17,7 +15,6 @@ import org.locationtech.jts.geom.Geometry;
 
 import java.util.*;
 
-
 public class UDFRegistry {
 
     public static void registerAll(SparkSession spark, GeometryReader adapter) {
@@ -26,14 +23,18 @@ public class UDFRegistry {
                 .add("x", DataTypes.DoubleType, false)
                 .add("y", DataTypes.DoubleType, false);
 
+        StructType bucketRangeType = new StructType()
+                .add("floor", DataTypes.IntegerType, false)
+                .add("ceiling", DataTypes.IntegerType, false);
+
         StructType partType = new StructType()
                 .add("coordinates", DataTypes.createArrayType(coordType));
 
         StructType bboxType = new StructType()
-                .add("min_x", DataTypes.DoubleType)
-                .add("min_y", DataTypes.DoubleType)
-                .add("max_x", DataTypes.DoubleType)
-                .add("max_y", DataTypes.DoubleType);
+                .add("min_x", DataTypes.DoubleType, false)
+                .add("min_y", DataTypes.DoubleType, false)
+                .add("max_x", DataTypes.DoubleType, false)
+                .add("max_y", DataTypes.DoubleType, false);
 
         StructType geometryType = new StructType()
                 .add("type", DataTypes.IntegerType, false)
@@ -43,11 +44,8 @@ public class UDFRegistry {
                 .add(DataTypes.createStructField("area", DataTypes.DoubleType, true))
                 .add(DataTypes.createStructField("startpoint", coordType, true))
                 .add(DataTypes.createStructField("endpoint", coordType, true))
-                .add(DataTypes.createStructField("geohash", DataTypes.StringType, true));
-
-
-
-
+                .add(DataTypes.createStructField("geohash_numeric", DataTypes.IntegerType, true))
+                .add(DataTypes.createStructField("partition_number", bucketRangeType, true));
 
         UDF1<Object, Row> stringOrGeomToGeometry = (Object input) -> {
             try {
@@ -66,47 +64,39 @@ public class UDFRegistry {
                 throw new IllegalArgumentException("Unsupported input type: " + input.getClass());
             }
 
+                Map<String, Object> geom = ParseGeometry.parseGeometry(geometry);
 
-
-            GeometryResult result = ParseGeometry.parseGeometry(geometry);
-                Map<String, Object> geom = result.geomMap;
                 int type = (int) geom.get("type");
                 @SuppressWarnings("unchecked")
-                List<List<Map<String, Object>>> partsList = (List<List<Map<String, Object>>>) geom.get("part");
+                List<List<Map<String, Double>>> partsList = (List<List<Map<String, Double>>>) geom.get("parts");
 
                 List<Row> partRows = new ArrayList<>();
-                for (List<Map<String, Object>> part : partsList) {
+                for (List<Map<String, Double>> part : partsList) {
                     List<Row> coordRows = new ArrayList<>();
-                    for (Map<String, Object> c : part) {
-                        double x = (double) c.get("x");
-                        double y = (double) c.get("y");
+                    for (Map<String, Double> c : part) {
+                        double x =  c.get("x");
+                        double y =  c.get("y");
                         coordRows.add(new GenericRowWithSchema(new Object[]{x, y}, coordType));
                     }
                     partRows.add(new GenericRowWithSchema(new Object[]{coordRows}, partType));
                 }
 
                 List<Object> values = new ArrayList<>();
-                values.add(type);
-                values.add(partRows);
+                values.add(type);            // 0: type
+                values.add(partRows);        // 1: parts
+                values.add(null);            // 2: bbox
+                values.add(null);            // 3: center
+                values.add(null);            // 4: area
+                values.add(null);            // 5: startpoint
+                values.add(null);            // 6: endpoint
+                values.add(null);            // 7: geohash_numeric
+                values.add(null);            // 8: partitionnumber
 
-                if (options.has("bbox"))
-                    values.add(result.computeBBoxRow(bboxType));
-                if (options.has("center"))
-                    values.add(result.computeCenterRow(centerType));
-                if (options.has("area"))
-                    values.add(result.computeArea());
-                if (options.has("startpoint"))
-                    values.add(result.computeStartPointRow(coordType));
-                if (options.has("endpoint"))
-                    values.add(result.computeEndPointRow(coordType));
-                if (options.has("geohash"))
-                    values.add(result.computeGeoHash());
 
                 return new GenericRowWithSchema(values.toArray(), geometryType);
 
             } catch (Exception e) {
-                // خطا رخ داد → مقدار null برگردان
-                e.printStackTrace();
+                System.err.println("Error parsing geometry: " + e.getMessage());
                 return null;
             }
         };

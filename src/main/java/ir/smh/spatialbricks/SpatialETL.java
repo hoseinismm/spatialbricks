@@ -71,7 +71,7 @@ public class SpatialETL implements Serializable {
         }
 
         // ثبت UDF و تبدیل
-        UDFRegistry.registerAll(spark, options, adapter);
+        UDFRegistry.registerAll(spark, adapter);
 
         // پیدا کردن نام واقعی ستون با ignore case، اعتبارسنجی وجود ستون geometry
         String geomCol = Arrays.stream(df.columns())

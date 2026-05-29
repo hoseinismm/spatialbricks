@@ -46,6 +46,7 @@ public class BucketManager2 {
                         }
                     }
                     current.count++;
+
                 }
             }
             catch (Exception e) {
@@ -155,9 +156,9 @@ public static class Bucket implements Serializable {
     }
 
 
-    public static int[] computeBucketBorders(Dataset<Row> df, String bucketFile) { // اضافه کردن ورودی نام فایل
+    public static int[] computeBucketBorders(Dataset<Row> df, String bucketFile) {
         List<Integer> list = df
-                .select("calculated_index")
+                .select("geometry.geohash_numeric")
                 .as(Encoders.INT())
                 .collectAsList();
 
@@ -189,9 +190,10 @@ public static class Bucket implements Serializable {
 
         saveBucket(newBucketsAfterAddingGeos, bucketFile);
 
+
+
         return  array;
     }
-
 
     public static void updateTreeFromStats(List<Row> rows, Bucket root) {
         for (Row row : rows) {
@@ -211,6 +213,9 @@ public static class Bucket implements Serializable {
 
 
         if (node.min == floor && node.max == ceiling) {
+            if (node.count>0) {
+                System.out.println("oldcount: " + node.count + " correct is:" + count);
+            }
             node.count=count;
             return;
         }
@@ -229,6 +234,9 @@ public static class Bucket implements Serializable {
         }
         else {
             borders.add(bucket.min);
+            if (bucket.count>0) {
+                System.out.println(bucket.min+" : "+bucket.count);
+            }
         }
         return  borders;
     }

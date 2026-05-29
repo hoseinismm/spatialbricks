@@ -152,5 +152,7 @@ public class GeometryResult {
         return convertGeohashToInt(computeGeoHash(lon,lat));
 
     }
+
+
 }
 

@@ -19,6 +19,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.types.StructType;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -52,9 +53,11 @@ public class SpatialWritingWithIndex implements Serializable {
 
         writeBronze(bronze, df);
 
+        updateBucket(silver);
+
         writeSilver(silver,jsc, df);
 
-        updateBucket(silver);
+
     }
 
     // ---------------------------
@@ -146,20 +149,27 @@ public class SpatialWritingWithIndex implements Serializable {
 
         registerUdfs();
 
-        CoordinateToGeohashNumericUdfRegistry.registerAll(spark);
-
         String geomCol = findGeometryColumn(df);
+
+        long n1 = df.count();
+        System.out.println("Row count n1 = " + n1);
 
         Dataset<Row> transformed = df
                 .withColumn("geometry",
-                        callUDF("stringOrGeomToGeometry", df.col(geomCol)))
+                        callUDF("stringOrGeomToGeometry", col(geomCol)))
                 .filter(col("geometry").isNotNull());
 
-        transformed = addGeohash(transformed);
+        long n2 = transformed.count();
+        System.out.println("Row count n2 = " + n2);
+
+        transformed=addGeohash(transformed);
 
         transformed = transformed.filter(
-                col("calculated_index").isNotNull()
+                col("geometry.geohash_numeric").isNotNull()
         );
+
+        long n3 = transformed.count();
+        System.out.println("Row count n3 = " + n3);
 
         int[] BucketBorderForNewRecords = BucketManager2.computeBucketBorders(transformed, bucketFileName);
 
@@ -168,9 +178,14 @@ public class SpatialWritingWithIndex implements Serializable {
         SparkUdfs.registerFindFloorAndCeilingUdf(spark, broadcastBorders);
 
         transformed = transformed.withColumn(
-                "bounds",
-                callUDF("findFloorAndCeiling", col("calculated_index"))
+                "geometry",
+                col("geometry").withField(
+                        "partition_number",
+                        callUDF("findFloorAndCeiling", col("geometry.geohash_numeric"))
+                )
         );
+
+
 
         /*transformed = transformed
                 .withColumn("floor_val", col("bounds.floor"))
@@ -204,7 +219,7 @@ public class SpatialWritingWithIndex implements Serializable {
                     transformed.schema(),
                     silver.database(),
                     silver.table(),
-            List.of("identity(bounds.floor)", "identity(bounds.ceiling)")
+            List.of("identity(geometry.partition_number.floor)", "identity(geometry.partition_number.ceiling)")
             );
         } else {
 
@@ -215,42 +230,51 @@ public class SpatialWritingWithIndex implements Serializable {
                 throw new RuntimeException(
                         "Schema mismatch for table: " + fullName
                 );
-
             }
-
         }
 
         transformed.writeTo(fullName).append();
         System.out.println("Data appended to silver layer");
-
-
     }
 
-    private void updateBucket (TableSpec silver) {
-        String metadataTable = silver.database() + "." + silver.table() + ".partitions";
+    private void updateBucket(TableSpec silver) {
 
+        String fullName = silver.database() + "." + silver.table();
+        String metadataTable = fullName + ".partitions";
         String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
+
+        File f = new File(bucketFileName);
+        if (!f.exists()) {
+            System.out.println("Bucket " + bucketFileName + " does not exist to update");
+            return;
+        }
+
 
 
         Dataset<Row> stats = spark.read()
                 .table(metadataTable)
+                .filter(col("partition").isNotNull())
                 .select(
-                        col("partition.`bounds.floor`").as("floor_val"),
-                        col("partition.`bounds.ceiling`").as("ceiling_val"),
+                        col("partition").getField("geometry.partition_number.floor").as("floor_val"),
+                        col("partition").getField("geometry.partition_number.ceiling").as("ceiling_val"),
                         col("record_count")
                 )
-
-
+                .filter(col("floor_val").isNotNull().and(col("ceiling_val").isNotNull()))
                 .groupBy("floor_val", "ceiling_val")
-                .agg(sum("record_count").as("total_count"));
+                .agg(sum(col("record_count")).as("total_count"));
 
         List<Row> partitionStats = stats.collectAsList();
 
-        BucketManager2.Bucket bucket=BucketManager2.loadBucket(bucketFileName);
+        BucketManager2.Bucket bucket = BucketManager2.loadBucket(bucketFileName);
+
+        System.out.println("partition metadata"+partitionStats);
+
 
         BucketManager2.updateTreeFromStats(partitionStats, bucket);
 
+        System.out.println("Bucket updated to " + bucketFileName);
     }
+
 
 
     // ---------------------------
@@ -258,8 +282,8 @@ public class SpatialWritingWithIndex implements Serializable {
     // ---------------------------
 
     private void registerUdfs() {
-        UDFRegistry.registerAll(spark, options, adapter);
-        GeohashToIntegerUdfRegistry.registerAll(spark);
+        UDFRegistry.registerAll(spark, adapter);
+        CoordinateToGeohashNumericUdfRegistry.registerAll(spark);
     }
 
     private String findGeometryColumn(Dataset<Row> df) {
@@ -272,33 +296,25 @@ public class SpatialWritingWithIndex implements Serializable {
 
     private Dataset<Row> addGeohash(Dataset<Row> df) {
 
-        boolean hasCenter = false;
-        try {
-            df.select("geometry.center.x");
-            hasCenter = true;
-        } catch (Exception e) {
-            hasCenter = false;
-        }
+        Column fromCenter = callUDF("CoordinateToGeohashNumeric",
+                col("geometry.center.x"), col("geometry.center.y"));
 
-        Column partFallback = callUDF("CoordinateToGeohashNumeric",
-                col("geometry.part").getItem(0).getField("coordinate").getItem(0).getField("x"),
-                col("geometry.part").getItem(0).getField("coordinate").getItem(0).getField("y")
-        );
+        Column fromFirst = callUDF("CoordinateToGeohashNumeric",
+                col("geometry.parts").getItem(0).getField("coordinates").getItem(0).getField("x"),
+                col("geometry.parts").getItem(0).getField("coordinates").getItem(0).getField("y"));
 
-        Column computation;
+        Column centerOk = col("geometry.center.x").isNotNull().and(col("geometry.center.y").isNotNull());
 
-        if (hasCenter) {
-            computation = when(col("geometry.center").isNotNull(),
-                    callUDF("CoordinateToGeohashNumeric", col("geometry.center.x"), col("geometry.center.y")))
-                    .otherwise(partFallback);
-        } else {
-            computation = partFallback;
-        }
+        Column firstOk =
+                size(col("geometry.parts")).gt(0)
+                        .and(size(col("geometry.parts").getItem(0).getField("coordinates")).gt(0));
 
-        Dataset<Row> finalDf = df.withColumn("calculated_index", computation);
+        Column geohash = when(centerOk, fromCenter)
+                .when(firstOk, fromFirst)
+                .otherwise(lit(null));
 
-        return finalDf;
-
+        return df.withColumn("geometry",
+                col("geometry").withField("geohash_numeric", geohash));
     }
 }
 

@@ -214,7 +214,7 @@ public class SpatialWritingWithoutIndex implements Serializable {
     // ---------------------------
 
     private void registerUdfs() {
-        UDFRegistry.registerAll(spark, options, adapter);
+        UDFRegistry.registerAll(spark, adapter);
         GeohashToIntegerUdfRegistry.registerAll(spark);
     }
 

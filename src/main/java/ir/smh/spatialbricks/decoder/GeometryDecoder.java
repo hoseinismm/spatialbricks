@@ -20,7 +20,7 @@ public class GeometryDecoder {
 
         // حالا بقیه کد را روی geoRow اجرا می‌کنیم
         int type = geoRow.getInt(geoRow.fieldIndex("type"));
-        List<Row> parts = geoRow.getList(geoRow.fieldIndex("part"))
+        List<Row> parts = geoRow.getList(geoRow.fieldIndex("parts"))
                 .stream()
                 .map(o -> (Row) o)
                 .toList();
