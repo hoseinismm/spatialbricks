@@ -46,7 +46,6 @@ public class BucketManager2 {
                         }
                     }
                     current.count++;
-
                 }
             }
             catch (Exception e) {
@@ -156,7 +155,7 @@ public static class Bucket implements Serializable {
     }
 
 
-    public static int[] computeBucketBorders(Dataset<Row> df, String bucketFile) {
+    public static List<Integer> computeBucketBorders(Dataset<Row> df, String bucketFile) {
         List<Integer> list = df
                 .select("geometry.geohash_numeric")
                 .as(Encoders.INT())
@@ -184,15 +183,13 @@ public static class Bucket implements Serializable {
 
         ListOfBorders.add(newBucketsAfterAddingGeos.max);
 
-        int[] array = ListOfBorders.stream()
-                .mapToInt(i -> i)
-                .toArray();
+
 
         saveBucket(newBucketsAfterAddingGeos, bucketFile);
 
 
 
-        return  array;
+        return  ListOfBorders;
     }
 
     public static void updateTreeFromStats(List<Row> rows, Bucket root) {
