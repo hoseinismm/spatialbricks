@@ -5,9 +5,7 @@ import ir.smh.spatialbricks.encoder.GeometryOptions;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.geoJsonGeometricalAdapter;
 import org.apache.sedona.spark.SedonaContext;
-import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
-import org.opengis.filter.expression.Add;
 
 import java.io.IOException;
 
@@ -28,7 +26,7 @@ public class Main {
 
         //SpatialETL etl = new SpatialETL(spark, options, adapter);
 
-        SpatialWritingWithIndex etl3= new SpatialWritingWithIndex(spark, options, adapter);
+        SpatialWriting etl3= new SpatialWriting(spark, options, adapter);
 
         TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
