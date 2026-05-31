@@ -31,7 +31,7 @@ public class Main {
         TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
 
-        etl3.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
+        etl3.silverLayerWithIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
 
 
 
