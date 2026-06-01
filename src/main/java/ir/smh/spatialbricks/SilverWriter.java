@@ -48,5 +48,11 @@ public class SilverWriter {
 
         transformed.writeTo(fullName).append();
         System.out.println("Data appended to silver layer");
+
+        Dataset<Row> table = spark.read()
+                .format("iceberg")
+                .load(fullName);
+        long n1 = table.count();
+        System.out.println("Row count n1 = " + n1);
     }
 }

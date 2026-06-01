@@ -1,7 +1,6 @@
 package ir.smh.spatialbricks;
 
 
-import ir.smh.spatialbricks.encoder.GeometryOptions;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 
 import org.apache.spark.api.java.JavaSparkContext;
@@ -10,9 +9,6 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
-
-
-import static org.apache.spark.sql.functions.*;
 
 
 import java.io.IOException;
@@ -30,7 +26,7 @@ public class SpatialWriting implements Serializable {
 
 
     public SpatialWriting
-            (SparkSession spark, GeometryOptions options, GeometryReader<?> adapter) {
+            (SparkSession spark, GeometryReader<?> adapter) {
         this.spark = spark;
         this.adapter = adapter;
         this.inputReader = new SpatialInputReader(spark);
@@ -41,11 +37,15 @@ public class SpatialWriting implements Serializable {
 
     void silverLayerWithoutIndex(TableSpec silver, String inputPath) throws NoSuchTableException {
 
+        UdfRegistrar.register(spark, adapter);
+
         JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
         Dataset<Row> df = inputReader.read(inputPath, jsc);
 
         df = checkGeometryColumnName(df);
+
+        df= SpatialTransformerForConvertGeometry.transform(df);
 
         silverWriter.writeSilver(silver, df);
     }
@@ -65,6 +65,8 @@ public class SpatialWriting implements Serializable {
     public void silverLayerWithIndex(TableSpec silver, String inputPath)
             throws NoSuchTableException {
 
+        UdfRegistrar.register(spark, adapter);
+
         String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
 
         JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
@@ -75,7 +77,9 @@ public class SpatialWriting implements Serializable {
 
         df = checkGeometryColumnName(df);
 
-        Dataset<Row> transformed = SpatialTransformer.transform( df,bucketFileName, jsc );
+        Dataset<Row> transformed = SpatialTransformerForConvertGeometry.transform(df);
+
+        transformed = SpatialTransformerForIndexing.transform( transformed,bucketFileName, jsc );
 
         silverWriter.writeSilver(silver, transformed);
     }
@@ -95,34 +99,7 @@ public class SpatialWriting implements Serializable {
         return df;
     }
 
-    private void computeGeohashForUnindexedRows(TableSpec silver) {
 
-            String fullName = silver.database() + "." + silver.table();
-
-            spark.sql(String.format(""" 
-                    EXPLAIN EXTENDED
-                    UPDATE %s
-                    SET geometry.geohash_numeric =
-                               CASE
-                       WHEN geometry.center.x IS NOT NULL
-                       AND geometry.center.y IS NOT NULL
-                       THEN CoordinateToGeohashNumeric(
-                               geometry.center.x,
-                               geometry.center.y
-                            )
-               
-                       WHEN size(geometry.parts) > 0
-                       AND size(geometry.parts[0].coordinates) > 0
-                       THEN CoordinateToGeohashNumeric(
-                               geometry.parts[0].coordinates[0].x,
-                               geometry.parts[0].coordinates[0].y
-                            )
-               
-                       ELSE NULL
-                       END
-                       WHERE geometry.partition_number IS NULL;
-                    """, fullName));
-    }
 
 
 }

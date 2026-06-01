@@ -1,7 +1,6 @@
 package ir.smh.spatialbricks;
 
-
-
+import ir.smh.spatialbricks.encoder.udf.CoordinateToGeohashNumericUdfRegistry;
 import ir.smh.spatialbricks.encoder.udf.SparkUdfs;
 
 import org.apache.spark.api.java.JavaSparkContext;
@@ -13,6 +12,7 @@ import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
 import static org.apache.spark.sql.functions.*;
 
+import java.io.IOException;
 import java.util.List;
 
 public class SpatialIndexBackfillJob {
@@ -24,10 +24,11 @@ public class SpatialIndexBackfillJob {
     }
 
     public void execute(
-            TableSpec silver,
-            JavaSparkContext jsc
-    ) throws NoSuchTableException {
+            TableSpec silver
 
+    ) throws NoSuchTableException, IOException {
+
+        JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
         String fullName =
                 silver.database() + "." + silver.table();
@@ -37,7 +38,6 @@ public class SpatialIndexBackfillJob {
                     "table " + fullName + " does not exist");
             return;
         }
-
         String bucketFileName =
                 "bucket_"
                         + silver.database()
@@ -51,9 +51,13 @@ public class SpatialIndexBackfillJob {
 
         long totalRows = table.count();
 
+        table.show();
+
+        table.printSchema();
+
         Dataset<Row> unindexed = table
                 .filter(col("geometry").isNotNull())
-                .filter(col("geometry.partition_number").isNull());
+                .filter(col("geometry.partition_number.floor").isNull());
 
         long unindexedRows = unindexed.count();
 
@@ -65,7 +69,7 @@ public class SpatialIndexBackfillJob {
         }
 
         List<Integer> borders =
-                BucketManager2.computeBucketBorders(
+                BucketManager.computeBucketBorders(
                         unindexed,
                         bucketFileName
                 );
@@ -87,7 +91,14 @@ public class SpatialIndexBackfillJob {
         runPartitionUpdate(fullName);
 
         validate(fullName, totalRows);
+
+        System.out.println("Press Enter to exit...");
+        System.in.read();
+
+
     }
+
+
 
     private void explainPartitionUpdate(String fullName) {
 
@@ -98,7 +109,7 @@ public class SpatialIndexBackfillJob {
                 findFloorAndCeiling(
                     geometry.geohash_numeric
                 )
-            WHERE geometry.partition_number IS NULL
+            WHERE geometry.partition_number.floor IS NULL
               AND geometry.geohash_numeric IS NOT NULL
             """, fullName))
                 .show(false);
@@ -112,7 +123,7 @@ public class SpatialIndexBackfillJob {
                 findFloorAndCeiling(
                     geometry.geohash_numeric
                 )
-            WHERE geometry.partition_number IS NULL
+            WHERE geometry.partition_number.floor IS NULL
               AND geometry.geohash_numeric IS NOT NULL
             """, fullName));
     }
@@ -135,5 +146,43 @@ public class SpatialIndexBackfillJob {
                             + actualCount
             );
         }
+    }
+    void computeGeohashForUnindexedRows(TableSpec silver) {
+
+        CoordinateToGeohashNumericUdfRegistry
+                .registerAll(spark);
+
+        String fullName = silver.database() + "." + silver.table();
+
+        System.out.println("now---------------------------------------");
+
+                spark.sql(String.format("""
+                  UPDATE %s
+                  SET geometry.geohash_numeric =
+                      CoordinateToGeohashNumeric(
+                          geometry.parts[0].coordinates[0].x,
+                          geometry.parts[0].coordinates[0].y
+                      )
+                  WHERE geometry.partition_number.floor IS NULL
+                """, fullName));
+
+
+
+        spark.sql(String.format("""
+              SELECT geometry.geohash_numeric FROM
+                  %s
+                  LIMIT 20
+              """, fullName))
+                .show(false);
+
+        Dataset<Row> table = spark.read()
+                .format("iceberg")
+                .load(fullName);
+
+        System.out.println("now---------------------------------------");
+
+
+        table.select("geometry.geohash_numeric").show(false);
+
     }
 }

@@ -46,12 +46,12 @@ public class BucketService {
 
         List<Row> partitionStats = stats.collectAsList();
 
-        BucketManager2.Bucket bucket = BucketManager2.loadBucket(bucketFileName);
+        BucketManager.Bucket bucket = BucketManager.loadBucket(bucketFileName);
 
         System.out.println("partition metadata"+partitionStats);
 
 
-        BucketManager2.updateTreeFromStats(partitionStats, bucket);
+        BucketManager.updateTreeFromStats(partitionStats, bucket);
 
         System.out.println("Bucket updated to " + bucketFileName);
     }

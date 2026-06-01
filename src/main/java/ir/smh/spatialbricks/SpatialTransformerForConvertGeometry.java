@@ -11,12 +11,10 @@ import java.util.List;
 
 import static org.apache.spark.sql.functions.*;
 
-public class SpatialTransformer implements Serializable {
+public class SpatialTransformerForConvertGeometry implements Serializable {
 
     static Dataset<Row> transform(
-            Dataset<Row> df,
-            String bucketFileName,
-            JavaSparkContext jsc
+            Dataset<Row> df
     ) {
 
         long n1 = df.count();
@@ -35,43 +33,6 @@ public class SpatialTransformer implements Serializable {
         long n2 = transformed.count();
         System.out.println("Row count n2 = " + n2);
 
-        transformed = addGeohash(transformed);
-
-        transformed = transformed.filter(
-                col("geometry.geohash_numeric").isNotNull()
-        );
-
-        long n3 = transformed.count();
-        System.out.println("Row count n3 = " + n3);
-
-        List<Integer> borders =
-                BucketManager2.computeBucketBorders(
-                        transformed,
-                        bucketFileName
-                );
-
-        int[] bucketBorders = borders.stream()
-                .mapToInt(i -> i)
-                .toArray();
-
-        Broadcast<int[]> broadcastBorders =
-                jsc.broadcast(bucketBorders);
-
-        SparkUdfs.registerFindFloorAndCeilingUdf(
-                transformed.sparkSession(),
-                broadcastBorders
-        );
-
-        transformed = transformed.withColumn(
-                "geometry",
-                col("geometry").withField(
-                        "partition_number",
-                        callUDF(
-                                "findFloorAndCeiling",
-                                col("geometry.geohash_numeric")
-                        )
-                )
-        );
 
         return transformed;
     }

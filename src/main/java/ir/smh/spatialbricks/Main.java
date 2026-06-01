@@ -12,6 +12,9 @@ import java.io.IOException;
 
 public class Main {
 
+    SpatialWriting spatialWriting;
+
+
     public static void main(String[] args) throws NoSuchTableException, IOException {
 
         var spark = SparkConfig.createSession("../datasets/newyork");
@@ -20,18 +23,21 @@ public class Main {
 
         SedonaContext.create(spark);
 
-        GeometryOptions options = GeometryOptions.of("geohash","center");
-
         GeometryReader<?> adapter = new geoJsonGeometricalAdapter();
 
         //SpatialETL etl = new SpatialETL(spark, options, adapter);
 
-        SpatialWriting etl3= new SpatialWriting(spark, options, adapter);
+        SpatialWriting etl3= new SpatialWriting(spark, adapter);
 
         TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
 
-        etl3.silverLayerWithIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
+        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
+
+        SpatialIndexBackfillJob spatialIndexBackfillJob=new SpatialIndexBackfillJob(spark);
+        spatialIndexBackfillJob.computeGeohashForUnindexedRows(silver);
+        spatialIndexBackfillJob.execute(silver);
+
 
 
 

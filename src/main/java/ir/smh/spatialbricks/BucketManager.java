@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-public class BucketManager2 {
+public class BucketManager {
     public static Bucket addGeosToBuckets(int[] newgeos, Bucket buckets, long MAX_SIZE) {
 
         long effectiveMaxSize = (MAX_SIZE < 1) ? 1L : MAX_SIZE;
@@ -160,6 +160,8 @@ public static class Bucket implements Serializable {
                 .select("geometry.geohash_numeric")
                 .as(Encoders.INT())
                 .collectAsList();
+
+        df.show();
 
         int[] geos = list.stream().mapToInt(Integer::intValue).toArray();
         Bucket bucket;
