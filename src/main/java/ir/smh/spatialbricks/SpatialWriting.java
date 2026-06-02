@@ -3,6 +3,7 @@ package ir.smh.spatialbricks;
 
 import ir.smh.spatialbricks.encoder.GeometryReader;
 
+import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import org.apache.spark.sql.Dataset;
@@ -37,7 +38,7 @@ public class SpatialWriting implements Serializable {
 
     void silverLayerWithoutIndex(TableSpec silver, String inputPath) throws NoSuchTableException {
 
-        UdfRegistrar.register(spark, adapter);
+        UDFRegistry.registerAll(spark,adapter);
 
         JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
@@ -65,7 +66,7 @@ public class SpatialWriting implements Serializable {
     public void silverLayerWithIndex(TableSpec silver, String inputPath,long rowsCapableOfProcessingByDriver, long maxPartitionSize)
             throws NoSuchTableException {
 
-        UdfRegistrar.register(spark, adapter);
+        UDFRegistry.registerAll(spark,adapter);
 
         String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
 
