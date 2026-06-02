@@ -135,7 +135,7 @@ public class GeometryResult {
 
         if (gh == null || gh.isEmpty()) return null;
 
-        Integer value = 0;
+        int value = 0;
         for (char c : gh.toCharArray()) {
             Integer v = GEOHASH_MAP.get(c);
             if (v == null) {

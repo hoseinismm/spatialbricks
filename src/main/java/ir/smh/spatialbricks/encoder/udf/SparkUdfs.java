@@ -1,6 +1,7 @@
 package ir.smh.spatialbricks.encoder.udf;
 
 
+import ir.smh.spatialbricks.encoder.GeometryResult;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.*;
@@ -11,59 +12,63 @@ import java.util.Arrays;
 
 public class SparkUdfs {
 
-        public static void registerFindFloorAndCeilingUdf(
-                SparkSession spark,
-                Broadcast<int[]> broadcastBorders
-        ) {
+    public static void registerFindFloorAndCeilingUdf(
+            SparkSession spark,
+            Broadcast<int[]> broadcastBorders) {
 
-            final int[] arr = broadcastBorders.value();
+        final int[] arr = broadcastBorders.value();
 
-            StructType returnSchema = DataTypes.createStructType(new StructField[]{
-                    DataTypes.createStructField("floor", DataTypes.IntegerType, true),
-                    DataTypes.createStructField("ceiling", DataTypes.IntegerType, true)
-            });
+        StructType returnSchema = DataTypes.createStructType(
+                new StructField[]{
+                        DataTypes.createStructField(
+                                "floor",
+                                DataTypes.IntegerType,
+                                true
+                        ),
+                        DataTypes.createStructField(
+                                "ceiling",
+                                DataTypes.IntegerType,
+                                true
+                        )
+                });
 
-            spark.udf().register(
-                    "findFloor",
-                    (Integer value) -> {
+        spark.udf().register(
+                "findFloorAndCeiling",
+                (Double x, Double y) -> {
 
-                        if (value == null) return null;
+                    if (x == null || y == null) {
+                        return RowFactory.create(null, null);
+                    }
 
-                        int idx = Arrays.binarySearch(arr, value);
+                    int geo =
+                            GeometryResult.computeGeohashNumeric(x,y);
 
-                        if (idx >= 0) {
-                            return arr[idx];
-                        }
+                    int idx = Arrays.binarySearch(arr, geo);
+                    int pos = (idx >= 0) ? idx : -(idx + 1);
 
-                        idx = -idx - 2;
+                    Integer floor =
+                            (idx >= 0)
+                                    ? arr[idx]
+                                    : (pos > 0 ? arr[pos - 1] : null);
 
-                        if (idx < 0) {
-                            return null;
-                        }
+                    int ceilIdx =
+                            (idx >= 0)
+                                    ? idx + 1
+                                    : pos;
 
-                        return arr[idx];
-                    },
-                    DataTypes.IntegerType
-            );
+                    Integer ceiling =
+                            (ceilIdx < arr.length)
+                                    ? arr[ceilIdx]
+                                    : null;
 
-            spark.udf().register("findFloorAndCeiling", (Integer value) -> {
-                if (value == null) return RowFactory.create(null, null);
-
-                int idx = Arrays.binarySearch(arr, value);
-                int pos = (idx >= 0) ? idx : -(idx + 1);
-
-                // محاسبه کف: اگر پیدا شد خودِ مقدار، اگر نشد عنصر قبلیِ مکان درج
-                Integer floor = (idx >= 0) ? arr[idx] : (pos > 0 ? arr[pos - 1] : null);
-
-                // محاسبه سقف: اگر پیدا شد عنصر بعدی، اگر نشد عنصرِ خودِ مکان درج
-                int ceilIdx = (idx >= 0) ? idx + 1 : pos;
-                Integer ceiling = (ceilIdx < arr.length) ? arr[ceilIdx] : null;
-
-                return RowFactory.create(floor, ceiling);
-            }, returnSchema);
-
-
-        }
+                    return RowFactory.create(
+                            floor,
+                            ceiling
+                    );
+                },
+                returnSchema
+        );
     }
+}
 
 

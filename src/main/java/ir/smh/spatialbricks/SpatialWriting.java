@@ -62,7 +62,7 @@ public class SpatialWriting implements Serializable {
         bronzeWriter.writeBronze(bronze, df);
     }
 
-    public void silverLayerWithIndex(TableSpec silver, String inputPath)
+    public void silverLayerWithIndex(TableSpec silver, String inputPath,long rowsCapableOfProcessingByDriver, long maxPartitionSize)
             throws NoSuchTableException {
 
         UdfRegistrar.register(spark, adapter);
@@ -71,7 +71,7 @@ public class SpatialWriting implements Serializable {
 
         JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
-        bucketService.updateBucket(silver);
+        Long totalRowsHint= bucketService.updateBucket(silver);
 
         Dataset<Row> df = inputReader.read(inputPath, jsc);
 
@@ -79,7 +79,13 @@ public class SpatialWriting implements Serializable {
 
         Dataset<Row> transformed = SpatialTransformerForConvertGeometry.transform(df);
 
-        transformed = SpatialTransformerForIndexing.transform( transformed,bucketFileName, jsc );
+        transformed = SpatialTransformerForIndexing.transform(
+                transformed,bucketFileName,
+                jsc,
+                rowsCapableOfProcessingByDriver,
+                maxPartitionSize,
+                totalRowsHint
+        );
 
         silverWriter.writeSilver(silver, transformed);
     }

@@ -44,10 +44,14 @@ public class UDFRegistry {
                 .add(DataTypes.createStructField("area", DataTypes.DoubleType, true))
                 .add(DataTypes.createStructField("startpoint", coordType, true))
                 .add(DataTypes.createStructField("endpoint", coordType, true))
-                .add(DataTypes.createStructField("geohash_numeric", DataTypes.IntegerType, true))
                 .add(DataTypes.createStructField("partition_number", bucketRangeType, true));
 
         UDF1<Object, Row> stringOrGeomToGeometry = (Object input) -> {
+
+            if (input == null) {
+                return null;
+            }
+
             try {
 
             Geometry geometry;
@@ -89,8 +93,7 @@ public class UDFRegistry {
                 values.add(null);            // 4: area
                 values.add(null);            // 5: startpoint
                 values.add(null);            // 6: endpoint
-                values.add(null);            // 7: geohash_numeric
-                values.add(null);            // 8: partitionnumber
+                values.add(null);            // 7: partitionnumber
 
 
                 return new GenericRowWithSchema(values.toArray(), geometryType);

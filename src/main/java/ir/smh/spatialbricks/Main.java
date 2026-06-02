@@ -25,7 +25,7 @@ public class Main {
 
         GeometryReader<?> adapter = new geoJsonGeometricalAdapter();
 
-        //SpatialETL etl = new SpatialETL(spark, options, adapter);
+
 
         SpatialWriting etl3= new SpatialWriting(spark, adapter);
 
@@ -35,8 +35,7 @@ public class Main {
         etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
 
         SpatialIndexBackfillJob spatialIndexBackfillJob=new SpatialIndexBackfillJob(spark);
-        spatialIndexBackfillJob.computeGeohashForUnindexedRows(silver);
-        spatialIndexBackfillJob.execute(silver);
+        spatialIndexBackfillJob.execute(silver, 100L, 52);
 
 
 

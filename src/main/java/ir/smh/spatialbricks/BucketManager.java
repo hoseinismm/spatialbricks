@@ -1,7 +1,7 @@
 package ir.smh.spatialbricks;
 
+import ir.smh.spatialbricks.encoder.GeometryResult;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 
 import java.io.*;
@@ -10,49 +10,65 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class BucketManager {
-    public static Bucket addGeosToBuckets(int[] newgeos, Bucket buckets, long MAX_SIZE) {
+    public static void addGeosToBuckets(
+            List<Row> rows,
+            Bucket rootBucket,
+            long maxSize,
+            double fraction) {
 
-        long effectiveMaxSize = (MAX_SIZE < 1) ? 1L : MAX_SIZE;
+        long sampleWeight = (long)Math.floor(1.0 / fraction);
+        double foraddprecision = (1.0 / fraction) - sampleWeight;
 
-            try {
+        long effectiveMaxSize = (maxSize < 1) ? 1L : maxSize;
 
-                for (int geo : newgeos) {
+        try {
 
-                    //System.out.println("now: "+ geo  );
+            for (Row row : rows) {
 
-                    Bucket current = buckets;
-                    if (bucketOutOfRange(geo, current)) {
-                        System.out.println("*********this geo is out of range: " + geo);
-                        continue;
+                double x = ((Number) row.getAs("x")).doubleValue();
+                double y = ((Number) row.getAs("y")).doubleValue();
+
+                int geo = GeometryResult.computeGeohashNumeric(x, y);
+
+                Bucket current = rootBucket;
+
+                if (bucketOutOfRange(geo, current)) {
+                    System.out.println(
+                            "*********this geo is out of range: "
+                                    + geo);
+                    continue;
+                }
+                while (current.hasChildren) {
+                    if (geo >= current.mid) {
+                        current = current.right;
+                    } else {
+                        current = current.left;
                     }
+                }
+                if ((current.count >= effectiveMaxSize)
+                        && (current.max - current.min >= 2)) {
 
-                    while (current.hasChildren) {
-                        if (geo >= current.mid) {
-                            current = current.right;
-                        } else {
-                            current = current.left;
-                        }
+                    current.createChild();
+
+                    if (geo < current.mid) {
+                        current = current.left;
+                    } else {
+                        current = current.right;
                     }
-
-                    if ((current.count >= effectiveMaxSize) && (current.max - current.min >= 2)) {
-
-                        current.createChild();
-                        current.hasChildren = true;
-
-                        if (geo < current.mid) {
-                            current = current.left;
-                        } else {
-                            current = current.right;
-                        }
-                    }
+                }
+                current.count += sampleWeight;
+                current.fraction+= foraddprecision;
+                if (current.fraction >= 1) {
                     current.count++;
+                    current.fraction -=1;
                 }
             }
-            catch (Exception e) {
-                    System.err.println("Error processing geo values: "  + e.getMessage());
-                    e.printStackTrace();
-                }
-        return buckets;
+        } catch (Exception e) {
+            System.err.println(
+                    "Error processing geo values: "
+                            + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
 public static class Bucket implements Serializable {
@@ -65,6 +81,7 @@ public static class Bucket implements Serializable {
         Bucket right;
         Bucket left;
         boolean hasChildren;
+        double fraction;
 
 
     Bucket(int min, int max, long count) {
@@ -74,20 +91,13 @@ public static class Bucket implements Serializable {
         this.count = count; // رفرنس منتقل می‌شود
         this.mid = min + (max - min) / 2;
         this.hasChildren = false;
-
+        this.fraction = 0;
     }
 
     public void createChild() {
         this.left = new Bucket(this.min, this.mid, 0L);
         this.right = new Bucket(this.mid, this.max, 0L);
         this.hasChildren = true;
-    }
-
-
-
-
-    public void incrementCount() {
-        this.count++;
     }
 }
 
@@ -119,7 +129,7 @@ public static class Bucket implements Serializable {
         }
     }
 
-    private static Bucket splitbucket(Bucket bucket) {
+    private static void splitbucket(Bucket bucket) {
         if (bucket.max-bucket.min>1048576) {
             //System.out.println(bucket.min+"  "+bucket.max+" "+bucket.mid);
             bucket.left = new Bucket(bucket.min, bucket.mid, 0L);
@@ -128,14 +138,13 @@ public static class Bucket implements Serializable {
             splitbucket(bucket.left);
             splitbucket(bucket.right);
         }
-        return bucket;
     }
 
     public static Bucket initialBucket() {
 
         Bucket initial = new Bucket(0, 1073741824, 0L);
         System.out.println(initial.min+"  "+initial.max);
-        initial = splitbucket(initial);
+        splitbucket(initial);
         System.out.println("bucketinitial created");
         return initial;
 
@@ -155,43 +164,64 @@ public static class Bucket implements Serializable {
     }
 
 
-    public static List<Integer> computeBucketBorders(Dataset<Row> df, String bucketFile) {
-        List<Integer> list = df
-                .select("geometry.geohash_numeric")
-                .as(Encoders.INT())
+    public static List<Integer> computeBucketBorders(
+            Dataset<Row> df,
+            String bucketFile,
+            long rowsCapableOfProcessingByDriver,
+            long maxPartitionSize,
+            Long totalRowsHint) {
+
+        long totalRows =
+                totalRowsHint != null
+                        ? totalRowsHint
+                        : df.count();
+
+        double fraction =
+                Math.min(1.0, (double) rowsCapableOfProcessingByDriver / totalRows);
+
+        List<Row> rows = df
+                .sample(false, fraction)
+                .selectExpr(
+                        "geometry.parts[0].coordinates[0].x as x",
+                        "geometry.parts[0].coordinates[0].y as y"
+                )
                 .collectAsList();
 
-        df.show();
-
-        int[] geos = list.stream().mapToInt(Integer::intValue).toArray();
-        Bucket bucket;
+        Bucket rootBucket;
 
         File f = new File(bucketFile);
 
         if (f.exists()) {
-            bucket = loadBucket(bucketFile);
+            rootBucket = loadBucket(bucketFile);
             System.out.println("Bucket loaded from: " + bucketFile);
-            if (bucket == null) bucket = initialBucket();
+            if (rootBucket == null) rootBucket = initialBucket();
         } else {
-            bucket = initialBucket();
+            rootBucket = initialBucket();
             System.out.println("Created new bucket for: " + bucketFile);
         }
 
-        Bucket newBucketsAfterAddingGeos = addGeosToBuckets(geos, bucket, 512);
+        if (fraction != 0.0) {
+            addGeosToBuckets(
+                    rows,
+                    rootBucket,
+                    maxPartitionSize,
+                    fraction
+            );
+        }
 
         List<Integer> borders = new ArrayList<>();
 
-        List<Integer> ListOfBorders = extractMinBordersFromBucket(newBucketsAfterAddingGeos, borders);
+        List<Integer> listOfBorders =
+                extractMinBordersFromBucket(
+                        rootBucket,
+                        borders
+                );
 
-        ListOfBorders.add(newBucketsAfterAddingGeos.max);
+        listOfBorders.add(rootBucket.max);
 
+        saveBucket(rootBucket, bucketFile);
 
-
-        saveBucket(newBucketsAfterAddingGeos, bucketFile);
-
-
-
-        return  ListOfBorders;
+        return listOfBorders;
     }
 
     public static void updateTreeFromStats(List<Row> rows, Bucket root) {
@@ -207,12 +237,12 @@ public static class Bucket implements Serializable {
         }
     }
 
+
     private static void updateBucket(Bucket node, int floor, int ceiling, long count) {
         if (node == null) return;
-
-
+        node.fraction=0;
         if (node.min == floor && node.max == ceiling) {
-            if (node.count>0) {
+            if (node.count>0 ) {
                 System.out.println("oldcount: " + node.count + " correct is:" + count);
             }
             node.count=count;

@@ -18,7 +18,7 @@ public class BucketService {
         this.spark = spark;
     }
 
-    void updateBucket(TableSpec silver) {
+    Long updateBucket(TableSpec silver) {
 
         String fullName = silver.database() + "." + silver.table();
         String metadataTable = fullName + ".partitions";
@@ -27,10 +27,8 @@ public class BucketService {
         File f = new File(bucketFileName);
         if (!f.exists()) {
             System.out.println("Bucket " + bucketFileName + " does not exist to update");
-            return;
+            return null;
         }
-
-
 
         Dataset<Row> stats = spark.read()
                 .table(metadataTable)
@@ -44,7 +42,18 @@ public class BucketService {
                 .groupBy("floor_val", "ceiling_val")
                 .agg(sum(col("record_count")).as("total_count"));
 
+
+
         List<Row> partitionStats = stats.collectAsList();
+
+        long totalRowsHint = 0L;
+
+        for (Row row : partitionStats) {
+            Long count = row.getAs("total_count");
+            if (count != null) {
+                totalRowsHint += count;
+            }
+        }
 
         BucketManager.Bucket bucket = BucketManager.loadBucket(bucketFileName);
 
@@ -54,5 +63,6 @@ public class BucketService {
         BucketManager.updateTreeFromStats(partitionStats, bucket);
 
         System.out.println("Bucket updated to " + bucketFileName);
+    return totalRowsHint;
     }
 }
