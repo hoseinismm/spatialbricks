@@ -1,7 +1,6 @@
 package ir.smh.spatialbricks;
 
 import ir.smh.spatialbricks.config.SparkConfig;
-import ir.smh.spatialbricks.encoder.GeometryOptions;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.geoJsonGeometricalAdapter;
 import org.apache.sedona.spark.SedonaContext;
@@ -34,8 +33,8 @@ public class Main {
 
         etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
 
-        SpatialIndexBackfillJob spatialIndexBackfillJob=new SpatialIndexBackfillJob(spark);
-        spatialIndexBackfillJob.execute(silver, 100L, 52);
+        AddOrUpdateSpatialIndex spatialIndexBackfillJob=new AddOrUpdateSpatialIndex(spark);
+        spatialIndexBackfillJob.addIndexToUnindexedRows(silver, 100L, 52);
 
 
 
