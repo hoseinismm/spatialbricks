@@ -34,7 +34,8 @@ public class UDFRegistry {
                 .add("min_x", DataTypes.DoubleType, false)
                 .add("min_y", DataTypes.DoubleType, false)
                 .add("max_x", DataTypes.DoubleType, false)
-                .add("max_y", DataTypes.DoubleType, false);
+                .add("max_y", DataTypes.DoubleType, false)
+                .add("region_code", DataTypes.IntegerType, false);
 
         StructType geometryType = new StructType()
                 .add("type", DataTypes.IntegerType, false)
