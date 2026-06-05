@@ -2,7 +2,6 @@ package ir.smh.spatialbricks;
 
 import ir.smh.spatialbricks.createsql.IcebergTableCreatorWithPartitioning;
 
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -11,11 +10,11 @@ import org.apache.spark.sql.types.StructType;
 
 import java.util.List;
 
-public class SilverWriter {
+public class SilverGeohashWriter {
 
     private final SparkSession spark;
 
-    public SilverWriter(SparkSession spark) {
+    public SilverGeohashWriter(SparkSession spark) {
         this.spark = spark;
     }
 
@@ -33,7 +32,7 @@ public class SilverWriter {
                     transformed.schema(),
                     silver.database(),
                     silver.table(),
-                    List.of("identity(geometry.partition_number.floor)", "identity(geometry.partition_number.ceiling)")
+                    List.of("identity(geometry.geohash_partitioning.floor)", "identity(geometry.geohash_partitioning.ceiling)")
             );
         } else {
 

@@ -10,11 +10,11 @@ import java.util.List;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.sum;
 
-public class BucketService {
+public class BucketServiceForBboxIndexing {
 
     private final SparkSession spark;
 
-    public BucketService(SparkSession spark) {
+    public BucketServiceForBboxIndexing(SparkSession spark) {
         this.spark = spark;
     }
 
@@ -30,19 +30,20 @@ public class BucketService {
             return null;
         }
 
+        Dataset<Row> statstest = spark.read()
+                .table(metadataTable);
+        statstest.show();
+
         Dataset<Row> stats = spark.read()
                 .table(metadataTable)
                 .filter(col("partition").isNotNull())
                 .select(
-                        col("partition").getField("geometry.partition_number.floor").as("floor_val"),
-                        col("partition").getField("geometry.partition_number.ceiling").as("ceiling_val"),
+                        col("partition").getField("geometry.bbox.region_code").as("region_code"),
                         col("record_count")
                 )
-                .filter(col("floor_val").isNotNull().and(col("ceiling_val").isNotNull()))
-                .groupBy("floor_val", "ceiling_val")
+                .filter(col("region_code").isNotNull())
+                .groupBy("region_code")
                 .agg(sum(col("record_count")).as("total_count"));
-
-
 
         List<Row> partitionStats = stats.collectAsList();
 
@@ -55,12 +56,11 @@ public class BucketService {
             }
         }
 
-        BucketManager.Bucket bucket = BucketManager.loadBucket(bucketFileName);
+        BucketManagerForBboxIndexing.Bucket bucket = BucketManagerForBboxIndexing.loadBucket(bucketFileName);
 
         System.out.println("partition metadata"+partitionStats);
 
-
-        BucketManager.updateTreeFromStats(partitionStats, bucket);
+        BucketManagerForBboxIndexing.updateTreeFromStats(partitionStats, bucket);
 
         System.out.println("Bucket updated to " + bucketFileName);
     return totalRowsHint;

@@ -31,10 +31,10 @@ public class Main {
         TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
 
-        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json");
+        etl3.silverLayerWithbboxIndexing( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json",100,512);
 
-        AddOrUpdateSpatialIndex spatialIndexBackfillJob=new AddOrUpdateSpatialIndex(spark);
-        spatialIndexBackfillJob.addIndexToUnindexedRows(silver, 100L, 52);
+        //AddOrUpdateSpatialIndex spatialIndexBackfillJob=new AddOrUpdateSpatialIndex(spark);
+        //spatialIndexBackfillJob.addIndexToUnindexedRows(silver, 100L, 52);
 
 
 

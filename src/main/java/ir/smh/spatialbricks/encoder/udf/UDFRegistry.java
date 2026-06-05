@@ -40,12 +40,8 @@ public class UDFRegistry {
         StructType geometryType = new StructType()
                 .add("type", DataTypes.IntegerType, false)
                 .add("parts", DataTypes.createArrayType(partType), false)
-                .add(DataTypes.createStructField("bbox", bboxType, true))
-                .add(DataTypes.createStructField("center", coordType, true))
-                .add(DataTypes.createStructField("area", DataTypes.DoubleType, true))
-                .add(DataTypes.createStructField("startpoint", coordType, true))
-                .add(DataTypes.createStructField("endpoint", coordType, true))
-                .add(DataTypes.createStructField("partition_number", bucketRangeType, true));
+                .add(DataTypes.createStructField("bbox_partitioning", bboxType, true))
+                .add(DataTypes.createStructField("geohash_partitioning", bucketRangeType, true));
 
         UDF1<Object, Row> stringOrGeomToGeometry = (Object input) -> {
 
@@ -55,19 +51,19 @@ public class UDFRegistry {
 
             try {
 
-            Geometry geometry;
+                Geometry geometry;
 
-            if (input instanceof byte[] && adapter instanceof WKBReaderAdapter) {
-                geometry = ((WKBReaderAdapter) adapter).inputToGeometry((byte[]) input);
-            } else if (input instanceof String && adapter instanceof WKTReaderAdapter) {
-                geometry = ((WKTReaderAdapter) adapter).inputToGeometry((String) input);
-            } else if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter) {
-                geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
-            } else if (input instanceof String && adapter instanceof geoJsonReaderAdapter) {
-                geometry = ((geoJsonReaderAdapter) adapter).inputToGeometry((String) input);
-            } else {
-                throw new IllegalArgumentException("Unsupported input type: " + input.getClass());
-            }
+                if (input instanceof byte[] && adapter instanceof WKBReaderAdapter) {
+                    geometry = ((WKBReaderAdapter) adapter).inputToGeometry((byte[]) input);
+                } else if (input instanceof String && adapter instanceof WKTReaderAdapter) {
+                    geometry = ((WKTReaderAdapter) adapter).inputToGeometry((String) input);
+                } else if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter) {
+                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
+                } else if (input instanceof String && adapter instanceof geoJsonReaderAdapter) {
+                    geometry = ((geoJsonReaderAdapter) adapter).inputToGeometry((String) input);
+                } else {
+                    throw new IllegalArgumentException("Unsupported input type: " + input.getClass());
+                }
 
                 Map<String, Object> geom = ParseGeometry.parseGeometry(geometry);
 
@@ -79,8 +75,8 @@ public class UDFRegistry {
                 for (List<Map<String, Double>> part : partsList) {
                     List<Row> coordRows = new ArrayList<>();
                     for (Map<String, Double> c : part) {
-                        double x =  c.get("x");
-                        double y =  c.get("y");
+                        double x = c.get("x");
+                        double y = c.get("y");
                         coordRows.add(new GenericRowWithSchema(new Object[]{x, y}, coordType));
                     }
                     partRows.add(new GenericRowWithSchema(new Object[]{coordRows}, partType));
@@ -89,12 +85,8 @@ public class UDFRegistry {
                 List<Object> values = new ArrayList<>();
                 values.add(type);            // 0: type
                 values.add(partRows);        // 1: parts
-                values.add(null);            // 2: bbox
-                values.add(null);            // 3: center
-                values.add(null);            // 4: area
-                values.add(null);            // 5: startpoint
-                values.add(null);            // 6: endpoint
-                values.add(null);            // 7: partitionnumber
+                values.add(null);            // 2: bboxpartitioning
+                values.add(null);            // 3: geohashpartitioning
 
 
                 return new GenericRowWithSchema(values.toArray(), geometryType);

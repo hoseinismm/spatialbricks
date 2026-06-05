@@ -1,6 +1,6 @@
 package ir.smh.spatialbricks;
 
-import ir.smh.spatialbricks.encoder.udf.SparkUdfs;
+import ir.smh.spatialbricks.encoder.udf.SparkBboxUdfs;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -10,18 +10,17 @@ import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 import static org.apache.spark.sql.functions.col;
 
-public class AddOrUpdateSpatialIndex {
+public class AddOrUpdateBboxIndex {
 
     private final SparkSession spark;
-    private final BucketService bucketService;
+    private final BucketServiceForGeohashindexing bucketService;
 
-    public AddOrUpdateSpatialIndex(SparkSession spark) {
+    public AddOrUpdateBboxIndex(SparkSession spark) {
         this.spark = spark;
-        this.bucketService = new BucketService(spark);
+        this.bucketService = new BucketServiceForGeohashindexing(spark);
     }
 
     public void addIndexToUnindexedRows(
@@ -40,7 +39,7 @@ public class AddOrUpdateSpatialIndex {
 
         Dataset<Row> unindexedRows = table
                 .filter(col("geometry").isNotNull())
-                .filter(col("geometry.partition_number.floor").isNull());
+                .filter(col("geometry.bbox_partitioning").isNull());
 
         long unindexedCount = unindexedRows.count();
 
@@ -118,8 +117,8 @@ public class AddOrUpdateSpatialIndex {
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(spark.sparkContext());
 
-        List<Integer> borders =
-                BucketManager.computeBucketBorders(
+        BucketManagerForBboxIndexing.Bucket bucket =
+                BucketManagerForBboxIndexing.computeBucketBorders(
                         rows,
                         bucketFileName,
                         rowsCapableOfProcessingByDriver,
@@ -127,31 +126,27 @@ public class AddOrUpdateSpatialIndex {
                         totalRowsHint
                 );
 
-        int[] bucketBorders = borders.stream()
-                .mapToInt(Integer::intValue)
-                .toArray();
+        Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets =
+                jsc.broadcast(bucket);
 
-        Broadcast<int[]> broadcastBorders =
-                jsc.broadcast(bucketBorders);
-
-        SparkUdfs.registerFindFloorAndCeilingUdf(
+        SparkBboxUdfs.registerFindBucketUdf(
                 spark,
-                broadcastBorders
+                broadcastRootBuckets
         );
 
         String whereClause = onlyUnindexed
                 ? """
-                  geometry.partition_number.floor IS NULL
+                  geometry.bbox_partitioning.region_code IS NULL
                   AND geometry IS NOT NULL
                   """
                 : "geometry IS NOT NULL";
 
         spark.sql(String.format("""
                 UPDATE %s
-                SET geometry.partition_number =
-                    findFloorAndCeiling(
-                        geometry.parts[0].coordinates[0].x,
-                        geometry.parts[0].coordinates[0].y
+                SET geometry.bbox_partitioning =
+                    findBucket(
+                        geometry.parts.x,
+                        geometry.parts.y
                     )
                 WHERE %s
                 """,

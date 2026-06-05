@@ -1,6 +1,6 @@
 package ir.smh.spatialbricks;
 
-import ir.smh.spatialbricks.encoder.udf.SparkUdfs;
+import ir.smh.spatialbricks.encoder.udf.SparkGeohashUdfs;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -12,7 +12,7 @@ import java.util.List;
 
 import static org.apache.spark.sql.functions.*;
 
-public class SpatialTransformerForIndexing implements Serializable {
+public class SpatialTransformerForGeohashIndexing implements Serializable {
 
     static Dataset<Row> transform(
             Dataset<Row> df,
@@ -27,7 +27,7 @@ public class SpatialTransformerForIndexing implements Serializable {
         System.out.println("Row count n3 = " + n3);
 
         List<Integer> borders =
-                BucketManager.computeBucketBorders(
+                BucketManagerForGeohashIndexing.computeBucketBorders(
                         df,
                         bucketFileName,
                         rowsCapableOfProcessingByDriver,
@@ -42,7 +42,7 @@ public class SpatialTransformerForIndexing implements Serializable {
         Broadcast<int[]> broadcastBorders =
                 jsc.broadcast(bucketBorders);
 
-        SparkUdfs.registerFindFloorAndCeilingUdf(
+        SparkGeohashUdfs.registerFindFloorAndCeilingUdf(
                 df.sparkSession(),
                 broadcastBorders
         );
@@ -93,7 +93,7 @@ public class SpatialTransformerForIndexing implements Serializable {
         return df.withColumn(
                 "geometry",
                 col("geometry").withField(
-                        "partition_number",
+                        "geohash_partitioning",
                         partitionNumber
                 )
         );

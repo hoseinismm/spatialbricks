@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-public class BucketManager {
+public class BucketManagerForGeohashIndexing {
     public static void addGeosToBuckets(
             List<Row> rows,
             Bucket rootBucket,

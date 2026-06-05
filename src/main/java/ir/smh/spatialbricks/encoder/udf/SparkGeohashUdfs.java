@@ -10,7 +10,7 @@ import org.apache.spark.sql.types.StructType;
 
 import java.util.Arrays;
 
-public class SparkUdfs {
+public class SparkGeohashUdfs {
 
     public static void registerFindFloorAndCeilingUdf(
             SparkSession spark,

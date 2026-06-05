@@ -1,13 +1,9 @@
 package ir.smh.spatialbricks;
 
-import ir.smh.spatialbricks.encoder.udf.SparkUdfs;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
 import java.io.Serializable;
-import java.util.List;
 
 import static org.apache.spark.sql.functions.*;
 
@@ -32,7 +28,6 @@ public class SpatialTransformerForConvertGeometry implements Serializable {
 
         long n2 = transformed.count();
         System.out.println("Row count n2 = " + n2);
-
 
         return transformed;
     }

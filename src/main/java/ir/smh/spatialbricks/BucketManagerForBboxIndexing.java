@@ -1,16 +1,17 @@
 package ir.smh.spatialbricks;
 
-import ir.smh.spatialbricks.encoder.GeometryResult;
+import ir.smh.spatialbricks.encoder.udf.SparkBboxUdfs;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import static org.apache.spark.sql.functions.callUDF;
+import static org.apache.spark.sql.functions.col;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-public class BucketManager2 {
+public class BucketManagerForBboxIndexing {
 
     public static void addGeosToBuckets(
             List<Row> rows,
@@ -27,13 +28,27 @@ public class BucketManager2 {
 
             for (Row row : rows) {
 
-                if (row == null) continue;
+                if (row == null) {
+                    continue;
+                }
 
-                double min_x = ((Number) row.getAs("min_x")).doubleValue();
-                double min_y = ((Number) row.getAs("min_y")).doubleValue();
-                double max_x = ((Number) row.getAs("max_x")).doubleValue();
-                double max_y = ((Number) row.getAs("max_y")).doubleValue();
 
+                Row bbox = row.getAs("bbox");
+
+                if (bbox == null) {
+                    continue;
+                }
+
+                Object minX = bbox.getAs("min_x");
+
+                if (minX == null) {
+                    continue;
+                }
+
+                double min_x = ((Number) bbox.getAs("min_x")).doubleValue();
+                double min_y = ((Number) bbox.getAs("min_y")).doubleValue();
+                double max_x = ((Number) bbox.getAs("max_x")).doubleValue();
+                double max_y = ((Number) bbox.getAs("max_y")).doubleValue();
 
                 Bucket current = rootBucket;
 
@@ -45,7 +60,7 @@ public class BucketManager2 {
                     continue;
                 }
 
-                while ((current.hasChildren )) {
+                while (current.hasChildren) {
 
                     if (max_x <= current.xmid && min_y >= current.ymid) {
                         current = current.topleft;
@@ -179,10 +194,8 @@ public class BucketManager2 {
         }
     }
 
-
-
-    private static boolean bucketOutOfRange(double xmin, double xmax, double ymin, double ymax, Bucket bucket) {
-        return !(xmin <= xmax && ymin <= ymax && xmax <= 180 && xmin >= -180 && ymin <= 90 && ymax >= -90);
+    private static boolean bucketOutOfRange(double xmin,  double ymin, double xmax, double ymax, Bucket bucket) {
+        return !(  xmin >= -180 && ymin <= 90 && xmax <= 180 && ymax >= -90);
     }
 
     public static Bucket computeBucketBorders(
@@ -200,13 +213,19 @@ public class BucketManager2 {
         double fraction =
                 Math.min(1.0, (double) rowsCapableOfProcessingByDriver / totalRows);
 
-        List<Row> rows = df
+        SparkBboxUdfs.registerCalculateBboxUdf(
+                df.sparkSession()
+        );
+
+        Dataset<Row> bboxDf = df
                 .sample(false, fraction)
-                .selectExpr(
-                        "geometry.parts[0].coordinates[0].x as x",
-                        "geometry.parts[0].coordinates[0].y as y"
-                )
-                .collectAsList();
+                .select(
+                        callUDF(
+                                "calculateBbox",
+                                col("geometry.parts")
+                        ).alias("bbox")
+                );
+        List<Row> rows = bboxDf.collectAsList();
 
         Bucket rootBucket;
 
