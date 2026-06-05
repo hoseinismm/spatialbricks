@@ -55,8 +55,8 @@ public class QueryMain {
 
         spark.sql("""          
                 SELECT count(*) AS bronzecount
-                FROM spark_catalog.bronzelayer.FireStations
-                WHERE ST_X(ST_GeomFromGeoJSON(geometry)) > -74.0
+                FROM  silverlayer.FireStations
+                WHERE (geometry.parts[0].coordinates[0].x) > -74.0 and geometry.parts[0].coordinates[0].x < -73.5 and geometry.bbox_partitioning.max_x>-74 and geometry.bbox_partitioning.min_x<-73.5
          """).show();
 
 
@@ -68,7 +68,7 @@ public class QueryMain {
         FROM spark_catalog.silverlayer.FireStations
         """).show(false);
 
-          */
+
 
 
 

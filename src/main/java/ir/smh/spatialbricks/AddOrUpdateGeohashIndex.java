@@ -17,11 +17,11 @@ import static org.apache.spark.sql.functions.col;
 public class AddOrUpdateGeohashIndex {
 
     private final SparkSession spark;
-    private final BucketServiceForGeohashindexing bucketService;
+    private final BucketServiceForGeohashIndexing bucketService;
 
     public AddOrUpdateGeohashIndex(SparkSession spark) {
         this.spark = spark;
-        this.bucketService = new BucketServiceForGeohashindexing(spark);
+        this.bucketService = new BucketServiceForGeohashIndexing(spark);
     }
 
     public void addIndexToUnindexedRows(

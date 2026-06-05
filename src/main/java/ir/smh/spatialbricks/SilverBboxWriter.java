@@ -31,7 +31,7 @@ public class SilverBboxWriter {
                     transformed.schema(),
                     silver.database(),
                     silver.table(),
-                    List.of("identity(geometry.bbox.region_code)")
+                    List.of("identity(geometry.bbox_partitioning.region_code)")
             );
         } else {
 

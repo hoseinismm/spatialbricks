@@ -6,6 +6,7 @@ import ir.smh.spatialbricks.encoder.udf.converttogeometry.geoJsonGeometricalAdap
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
+
 import java.io.IOException;
 
 
@@ -24,27 +25,40 @@ public class Main {
 
         GeometryReader<?> adapter = new geoJsonGeometricalAdapter();
 
-
-
         SpatialWriting etl3= new SpatialWriting(spark, adapter);
 
         TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
 
-        etl3.silverLayerWithbboxIndexing( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json",100,512);
-
-        //AddOrUpdateSpatialIndex spatialIndexBackfillJob=new AddOrUpdateSpatialIndex(spark);
-        //spatialIndexBackfillJob.addIndexToUnindexedRows(silver, 100L, 52);
+        //etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json","bbox");
 
 
+        AddOrUpdateBboxIndex newindexjob= new AddOrUpdateBboxIndex(spark);
+        //newindexjob.addIndexToUnindexedRows(silver, 100L, 512);
 
+        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json","bbox");
+        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_1_ndjson.json", "bbox");
+        newindexjob.addIndexToUnindexedRows(silver, 100L, 512);
+        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_2_ndjson.json", "bbox");
+        newindexjob.addIndexToUnindexedRows(silver, 100L, 512);
+        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_3_ndjson.json", "bbox");
 
+        newindexjob.updateIndexing(silver, 100L, 512);
 
-        //etl2.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_1_ndjson.json");
-        //etl2.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_2_ndjson.json");
-        //etl2.processFile(bronze, silver, "../datasets/newyork/raw-files/group_id_3_ndjson.json");
+        spark.sql("""
+                            CALL spark_catalog.system.expire_snapshots(
+                                table => 'silverlayer.FireStations',
+                                older_than => TIMESTAMP '2100-01-01 00:00:00',
+                                retain_last => 1
+                            )
+            """);
 
+                    spark.sql("""
+            SELECT *
+            FROM silverlayer.FireStations.snapshots
+            """).show(false);
 
         spark.stop();
     }
 }
+

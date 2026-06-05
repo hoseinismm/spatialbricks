@@ -12,7 +12,6 @@ import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Objects;
 
 public class SpatialWriting implements Serializable {
 
@@ -22,7 +21,7 @@ public class SpatialWriting implements Serializable {
     private final BronzeWriter bronzeWriter;
     private final SilverGeohashWriter silverGeohashWriter;
     private final SilverBboxWriter silverBboxWriter;
-    private final BucketServiceForGeohashindexing bucketServiceForGeohashindexing;
+    private final BucketServiceForGeohashIndexing bucketServiceForGeohashindexing;
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
 
 
@@ -34,7 +33,7 @@ public class SpatialWriting implements Serializable {
         this.bronzeWriter = new BronzeWriter(spark);
         this.silverGeohashWriter = new SilverGeohashWriter(spark);
         this.silverBboxWriter = new SilverBboxWriter(spark);
-        this.bucketServiceForGeohashindexing = new BucketServiceForGeohashindexing(spark);
+        this.bucketServiceForGeohashindexing = new BucketServiceForGeohashIndexing(spark);
         this.bucketServiceForBboxIndexing = new BucketServiceForBboxIndexing(spark);
 
     }
@@ -70,7 +69,7 @@ public class SpatialWriting implements Serializable {
         bronzeWriter.writeBronze(bronze, df);
     }
 
-    public void silverLayerWithgeohashIndexing(TableSpec silver, String inputPath,long rowsCapableOfProcessingByDriver, long maxPartitionSize)
+    public void silverLayerWithGeohashIndexing(TableSpec silver, String inputPath,long rowsCapableOfProcessingByDriver, long maxPartitionSize)
             throws NoSuchTableException {
 
 
@@ -99,33 +98,73 @@ public class SpatialWriting implements Serializable {
         silverGeohashWriter.writeSilver(silver, transformed);
     }
 
-    public void silverLayerWithbboxIndexing(TableSpec silver, String inputPath,long rowsCapableOfProcessingByDriver, long maxPartitionSize)
+    public void silverLayerWithBboxIndexing(
+            TableSpec silver,
+            String inputPath,
+            long rowsCapableOfProcessingByDriver,
+            long maxPartitionSize)
             throws NoSuchTableException {
 
+        JavaSparkContext jsc =
+                JavaSparkContext.fromSparkContext(
+                        spark.sparkContext());
 
-        UDFRegistry.registerAll(spark,adapter);
+        Dataset<Row> df =
+                inputReader.read(inputPath, jsc);
 
-        String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
+        silverLayerWithBboxIndexing(
+                silver,
+                df,
+                rowsCapableOfProcessingByDriver,
+                maxPartitionSize
+        );
+    }
 
-        JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
+    public void silverLayerWithBboxIndexing(
+            TableSpec silver,
+            Dataset<Row> df,
+            long rowsCapableOfProcessingByDriver,
+            long maxPartitionSize)
+            throws NoSuchTableException {
 
-        Long totalRowsHint= bucketServiceForBboxIndexing.updateBucket(silver);
+        UDFRegistry.registerAll(spark, adapter);
 
-        Dataset<Row> df = inputReader.read(inputPath, jsc);
+        String bucketFileName =
+                "bucket_"
+                        + silver.database()
+                        + "_"
+                        + silver.table()
+                        + ".gz";
+
+        JavaSparkContext jsc =
+                JavaSparkContext.fromSparkContext(
+                        spark.sparkContext());
+
+        Long totalRowsHint =
+                bucketServiceForBboxIndexing.updateBucket(
+                        silver
+                );
 
         df = checkGeometryColumnName(df);
 
-        Dataset<Row> transformed = SpatialTransformerForConvertGeometry.transform(df);
+        Dataset<Row> transformed =
+                SpatialTransformerForConvertGeometry
+                        .transform(df);
 
-        transformed = SpatialTransformerForBboxIndexing.transform(
-                transformed,bucketFileName,
-                jsc,
-                rowsCapableOfProcessingByDriver,
-                maxPartitionSize,
-                totalRowsHint
+        transformed =
+                SpatialTransformerForBboxIndexing.transform(
+                        transformed,
+                        bucketFileName,
+                        jsc,
+                        rowsCapableOfProcessingByDriver,
+                        maxPartitionSize,
+                        totalRowsHint
+                );
+
+        silverBboxWriter.writeSilver(
+                silver,
+                transformed
         );
-
-        silverBboxWriter.writeSilver(silver, transformed);
     }
 
     private Dataset<Row> checkGeometryColumnName(Dataset<Row> df) {

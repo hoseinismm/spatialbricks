@@ -16,11 +16,11 @@ import static org.apache.spark.sql.functions.col;
 public class AddOrUpdateBboxIndex {
 
     private final SparkSession spark;
-    private final BucketServiceForGeohashindexing bucketService;
+    private final BucketServiceForBboxIndexing bucketService;
 
     public AddOrUpdateBboxIndex(SparkSession spark) {
         this.spark = spark;
-        this.bucketService = new BucketServiceForGeohashindexing(spark);
+        this.bucketService = new BucketServiceForBboxIndexing(spark);
     }
 
     public void addIndexToUnindexedRows(
@@ -49,7 +49,7 @@ public class AddOrUpdateBboxIndex {
             return;
         }
 
-        long totalRowsHint = bucketService.updateBucket(silver);
+        Long totalRowsHint = bucketService.updateBucket(silver);
 
         updateIndex(
                 fullName,
@@ -110,7 +110,7 @@ public class AddOrUpdateBboxIndex {
             String bucketFileName,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
-            long totalRowsHint,
+            Long totalRowsHint,
             boolean onlyUnindexed
     ) throws IOException {
 
@@ -145,8 +145,7 @@ public class AddOrUpdateBboxIndex {
                 UPDATE %s
                 SET geometry.bbox_partitioning =
                     findBucket(
-                        geometry.parts.x,
-                        geometry.parts.y
+                        geometry.parts
                     )
                 WHERE %s
                 """,

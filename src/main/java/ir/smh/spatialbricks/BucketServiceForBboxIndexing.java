@@ -38,7 +38,7 @@ public class BucketServiceForBboxIndexing {
                 .table(metadataTable)
                 .filter(col("partition").isNotNull())
                 .select(
-                        col("partition").getField("geometry.bbox.region_code").as("region_code"),
+                        col("partition").getField("geometry.bbox_partitioning.region_code").as("region_code"),
                         col("record_count")
                 )
                 .filter(col("region_code").isNotNull())

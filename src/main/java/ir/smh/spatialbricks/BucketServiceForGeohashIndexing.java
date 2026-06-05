@@ -10,11 +10,11 @@ import java.util.List;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.sum;
 
-public class BucketServiceForGeohashindexing {
+public class BucketServiceForGeohashIndexing {
 
     private final SparkSession spark;
 
-    public BucketServiceForGeohashindexing(SparkSession spark) {
+    public BucketServiceForGeohashIndexing(SparkSession spark) {
         this.spark = spark;
     }
 
