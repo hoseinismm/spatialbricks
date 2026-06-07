@@ -46,7 +46,7 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
         return df.withColumn(
                 "geometry",
                 col("geometry").withField(
-                        "bbox",
+                        "bbox_partitioning",
                         callUDF(
                                 "findBucket",
                                 col("geometry.parts")

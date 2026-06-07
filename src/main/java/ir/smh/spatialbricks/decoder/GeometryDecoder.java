@@ -5,63 +5,93 @@ import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class GeometryDecoder {
 
     private static final GeometryFactory geometryFactory = new GeometryFactory();
 
-    public static Geometry rowToGeometry(Row rootRow) {
-        if (rootRow == null) return null;
+    public static Geometry geometryToJTS(Row geoRow) {
 
-
-        Row geoRow = rootRow.getStruct(rootRow.fieldIndex("geometry"));
         if (geoRow == null) return null;
 
-        // حالا بقیه کد را روی geoRow اجرا می‌کنیم
         int type = geoRow.getInt(geoRow.fieldIndex("type"));
+
+
         List<Row> parts = geoRow.getList(geoRow.fieldIndex("parts"))
                 .stream()
                 .map(o -> (Row) o)
                 .toList();
 
+        if (parts.isEmpty()) {
+            throw new IllegalArgumentException("Geometry contains no parts");
+        }
+
         switch (type) {
 
-            case 1: // POINT
-                Row part = parts.get(0);
+            case 1:
+                Coordinate[] pointCoords = extractCoords(parts.get(0));
 
-                List<?> rawCoords = part.getList(part.fieldIndex("coordinate"));
-                Row coord = (Row) rawCoords.get(0);
-
-                double x = coord.getDouble(coord.fieldIndex("x"));
-                double y = coord.getDouble(coord.fieldIndex("y"));
-
-                return geometryFactory.createPoint(new Coordinate(x, y));
-
-            case 2: // LINESTRING
-                Row linePart = parts.get(0);
-                List<?> rawLineCoords = linePart.getList(linePart.fieldIndex("coordinate"));
-
-                Coordinate[] lineCoords = new Coordinate[rawLineCoords.size()];
-
-                for (int i = 0; i < rawLineCoords.size(); i++) {
-                    Row c = (Row) rawLineCoords.get(i);
-                    lineCoords[i] = new Coordinate(
-                            c.getDouble(c.fieldIndex("x")),
-                            c.getDouble(c.fieldIndex("y"))
+                if (pointCoords.length != 1) {
+                    throw new IllegalArgumentException(
+                            "Point must contain exactly one coordinate"
                     );
                 }
 
-                return geometryFactory.createLineString(lineCoords);
+                return geometryFactory.createPoint(pointCoords[0]);
+
+            case 2:
+                return geometryFactory.createLineString(
+                        extractCoords(parts.get(0))
+                );
 
             case 3:
                 return decodePolygon(parts);
+            case 4:
+                return decodeMultiPoint(parts);
+
+            case 5:
+                return decodeMultiLineString(parts);
             case 6:
                 return decodeMultiPolygon(parts);
             default:
                 throw new IllegalArgumentException("Unsupported geometry type: " + type);
         }
     }
+
+    private static MultiPoint decodeMultiPoint(List<Row> parts) {
+
+        Point[] points = new Point[parts.size()];
+
+        for (int i = 0; i < parts.size(); i++) {
+
+            Coordinate[] coords = extractCoords(parts.get(i));
+
+            if (coords.length != 1) {
+                throw new IllegalArgumentException(
+                        "MultiPoint part must contain exactly one coordinate"
+                );
+            }
+
+            points[i] = geometryFactory.createPoint(coords[0]);
+        }
+
+        return geometryFactory.createMultiPoint(points);
+    }
+
+    private static MultiLineString decodeMultiLineString(List<Row> parts) {
+
+        LineString[] lines = new LineString[parts.size()];
+
+        for (int i = 0; i < parts.size(); i++) {
+
+            Coordinate[] coords = extractCoords(parts.get(i));
+
+            lines[i] = geometryFactory.createLineString(coords);
+        }
+
+        return geometryFactory.createMultiLineString(lines);
+    }
+
     private static Polygon decodePolygon(List<Row> parts) {
         LinearRing shell = null;
         List<LinearRing> holes = new ArrayList<>();
@@ -132,8 +162,8 @@ public class GeometryDecoder {
         return geometryFactory.createMultiPolygon(polygons.toArray(new Polygon[0]));
     }
 
-    private static Coordinate[] extractCoords(Row ringPart) {
-        List<?> rawCoords = ringPart.getList(ringPart.fieldIndex("coordinate"));
+    private static Coordinate[] extractCoords(Row Part) {
+        List<?> rawCoords = Part.getList(Part.fieldIndex("coordinates"));
         Coordinate[] coords = new Coordinate[rawCoords.size()];
 
         for (int i = 0; i < rawCoords.size(); i++) {
@@ -148,11 +178,8 @@ public class GeometryDecoder {
     }
 
     private static boolean isShell(Coordinate[] coords) {
-        // اینجا باید مطابق استاندارد دیتای خودتان تنظیم شود
-        // اگر shell ها CCW هستند:
+
         return Orientation.isCCW(coords);
 
-        // اگر shell ها CW هستند، این را بگذارید:
-        // return !Orientation.isCCW(coords);
     }
 }

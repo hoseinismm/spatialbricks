@@ -1,17 +1,23 @@
 package ir.smh.spatialbricks;
+import ir.smh.spatialbricks.encoder.GeometryBuilder;
 
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
+import org.apache.spark.sql.Row;
+
+
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
+
+import static org.apache.spark.sql.functions.callUDF;
+import static org.apache.spark.sql.functions.col;
 
 public class SpatialWriting implements Serializable {
 
@@ -25,6 +31,7 @@ public class SpatialWriting implements Serializable {
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
 
 
+
     public SpatialWriting
             (SparkSession spark, GeometryReader<?> adapter) {
         this.spark = spark;
@@ -35,7 +42,10 @@ public class SpatialWriting implements Serializable {
         this.silverBboxWriter = new SilverBboxWriter(spark);
         this.bucketServiceForGeohashindexing = new BucketServiceForGeohashIndexing(spark);
         this.bucketServiceForBboxIndexing = new BucketServiceForBboxIndexing(spark);
+    }
 
+    public SpatialWriting(SparkSession spark) {
+        this(spark, null);
     }
 
     void silverLayerWithoutIndex(TableSpec silver, String inputPath, String typeOfPartitioning) throws NoSuchTableException {
@@ -180,6 +190,54 @@ public class SpatialWriting implements Serializable {
                     "geometry");
         }
         return df;
+    }
+
+    public void customWriter(
+            TableSpec silver,
+            String inputPath,
+            long rowsCapableOfProcessingByDriver,
+            long maxPartitionSize, String xColumn, String yColumn)
+            throws NoSuchTableException {
+
+        UDFRegistry.registerAll(spark, adapter);
+
+        String bucketFileName =
+                "bucket_"
+                        + silver.database()
+                        + "_"
+                        + silver.table()
+                        + ".gz";
+
+        JavaSparkContext jsc =
+                JavaSparkContext.fromSparkContext(
+                        spark.sparkContext());
+
+        Dataset<Row> df =
+                inputReader.read(inputPath, jsc);
+
+        Dataset<Row> transformed = GeometryBuilder.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
+
+        Long totalRowsHint =
+                bucketServiceForBboxIndexing.updateBucket(
+                        silver
+                );
+
+
+
+        transformed =
+                SpatialTransformerForBboxIndexing.transform(
+                        transformed,
+                        bucketFileName,
+                        jsc,
+                        rowsCapableOfProcessingByDriver,
+                        maxPartitionSize,
+                        totalRowsHint
+                );
+
+        silverBboxWriter.writeSilver(
+                silver,
+                transformed
+        );
     }
 }
 

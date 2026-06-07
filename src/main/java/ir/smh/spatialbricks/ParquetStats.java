@@ -13,7 +13,7 @@ public class ParquetStats {
     public static void main(String[] args) throws Exception {
 
         String file =
-                "../datasets/newyork/silverlayer/FireStations/data/bucket_min=424673280/00000-10-d13c47d9-740a-4f52-8f42-3374185cbc86-0-00001.parquet";
+                "../datasets/newyork/silverlayer/FireStations/data/geometry.bbox_partitioning.region_code=null/00000-51-09fb7f0e-c9fa-4997-9952-076301d4c384-0-00001.parquet";
 
         var reader = ParquetFileReader.open(
                 new Configuration(),

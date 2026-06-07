@@ -184,7 +184,7 @@ public class BucketManagerForBboxIndexing {
     }
 
     private static void splitbucket(Bucket bucket) {
-        if (bucket.xmax-bucket.xmin>6) {
+        if (bucket.xmax-bucket.xmin>24) {
             //System.out.println(bucket.min+"  "+bucket.max+" "+bucket.mid);
             bucket.createChild();
             splitbucket(bucket.topleft);

@@ -15,7 +15,7 @@ public class Main {
     SpatialWriting spatialWriting;
 
 
-    public static void main(String[] args) throws NoSuchTableException, IOException {
+    public static void main(String[] args) throws NoSuchTableException, IOException, InterruptedException {
 
         var spark = SparkConfig.createSession("../datasets/newyork");
 
@@ -23,29 +23,29 @@ public class Main {
 
         SedonaContext.create(spark);
 
-        GeometryReader<?> adapter = new geoJsonGeometricalAdapter();
+        //GeometryReader<?> adapter = new geoJsonGeometricalAdapter();
 
-        SpatialWriting etl3= new SpatialWriting(spark, adapter);
+        SpatialWriting etl3= new SpatialWriting(spark);
 
-        TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
+        //TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
 
-        //etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json","bbox");
+        etl3.customWriter( silver, "../datasets/newyork/raw-files/yellow_tripdata_2009-01.parquet", 25000, 1048576, "Start_lon", "Start_lat");
 
+        //AddOrUpdateBboxIndex newindexjob= new AddOrUpdateBboxIndex(spark);
 
-        AddOrUpdateBboxIndex newindexjob= new AddOrUpdateBboxIndex(spark);
         //newindexjob.addIndexToUnindexedRows(silver, 100L, 512);
 
-        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_0_ndjson.json","bbox");
-        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_1_ndjson.json", "bbox");
-        newindexjob.addIndexToUnindexedRows(silver, 100L, 512);
-        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_2_ndjson.json", "bbox");
-        newindexjob.addIndexToUnindexedRows(silver, 100L, 512);
-        etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_3_ndjson.json", "bbox");
 
-        newindexjob.updateIndexing(silver, 100L, 512);
+        //etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_1_ndjson.json", "bbox");
+        //newindexjob.addIndexToUnindexedRows(silver, 100L, 512);
+        //etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_2_ndjson.json", "bbox");
+        //newindexjob.addIndexToUnindexedRows(silver, 100L, 512);
+        //etl3.silverLayerWithoutIndex( silver, "../datasets/newyork/raw-files/group_id_3_ndjson.json", "bbox");
 
-        spark.sql("""
+        //newindexjob.updateIndexing(silver, 100L, 512);
+
+        /*spark.sql("""
                             CALL spark_catalog.system.expire_snapshots(
                                 table => 'silverlayer.FireStations',
                                 older_than => TIMESTAMP '2100-01-01 00:00:00',
@@ -53,12 +53,15 @@ public class Main {
                             )
             """);
 
-                    spark.sql("""
+                    //spark.sql("""
             SELECT *
             FROM silverlayer.FireStations.snapshots
             """).show(false);
+            */
+
 
         spark.stop();
+        Thread.sleep(3000);
     }
 }
 
