@@ -52,12 +52,6 @@ public class SpatialTransformerForGeohashIndexing implements Serializable {
 
     private static  Dataset<Row> findFloorAndCeiling(Dataset<Row> df) {
 
-        var fromCenter = callUDF(
-                "findFloorAndCeiling",
-                col("geometry.center.x"),
-                col("geometry.center.y")
-        );
-
         var fromFirst = callUDF(
                 "findFloorAndCeiling",
                 col("geometry.parts")
@@ -72,10 +66,6 @@ public class SpatialTransformerForGeohashIndexing implements Serializable {
                         .getField("y")
         );
 
-        var centerOk =
-                col("geometry.center.x").isNotNull()
-                        .and(col("geometry.center.y").isNotNull());
-
         var firstOk =
                 size(col("geometry.parts")).gt(0)
                         .and(
@@ -86,8 +76,7 @@ public class SpatialTransformerForGeohashIndexing implements Serializable {
                                 ).gt(0)
                         );
 
-        var partitionNumber = when(centerOk, fromCenter)
-                .when(firstOk, fromFirst)
+        var partitionNumber = when(firstOk, fromFirst)
                 .otherwise(lit(null));
 
         return df.withColumn(

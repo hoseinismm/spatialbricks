@@ -1,11 +1,11 @@
 package ir.smh.spatialbricks;
+import ir.smh.spatialbricks.createsql.IcebergTableCreator;
+import ir.smh.spatialbricks.createsql.IcebergTableCreatorWithPartitioning;
 import ir.smh.spatialbricks.encoder.GeometryBuilder;
 
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.spark.sql.Row;
-
-
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
@@ -15,9 +15,7 @@ import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
-
-import static org.apache.spark.sql.functions.callUDF;
-import static org.apache.spark.sql.functions.col;
+import java.util.List;
 
 public class SpatialWriting implements Serializable {
 
@@ -29,8 +27,6 @@ public class SpatialWriting implements Serializable {
     private final SilverBboxWriter silverBboxWriter;
     private final BucketServiceForGeohashIndexing bucketServiceForGeohashindexing;
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
-
-
 
     public SpatialWriting
             (SparkSession spark, GeometryReader<?> adapter) {
@@ -199,8 +195,6 @@ public class SpatialWriting implements Serializable {
             long maxPartitionSize, String xColumn, String yColumn)
             throws NoSuchTableException {
 
-        UDFRegistry.registerAll(spark, adapter);
-
         String bucketFileName =
                 "bucket_"
                         + silver.database()
@@ -222,8 +216,6 @@ public class SpatialWriting implements Serializable {
                         silver
                 );
 
-
-
         transformed =
                 SpatialTransformerForBboxIndexing.transform(
                         transformed,
@@ -238,6 +230,78 @@ public class SpatialWriting implements Serializable {
                 silver,
                 transformed
         );
+    }
+
+    public void customWriterWithGeohashIndex(
+            TableSpec silver,
+            String inputPath,
+            long rowsCapableOfProcessingByDriver,
+            long maxPartitionSize, String xColumn, String yColumn)
+            throws NoSuchTableException {
+
+        UDFRegistry.registerAll(spark, adapter);
+
+        String bucketFileName =
+                "bucket_"
+                        + silver.database()
+                        + "_"
+                        + silver.table()
+                        + ".gz";
+
+        JavaSparkContext jsc =
+                JavaSparkContext.fromSparkContext(
+                        spark.sparkContext());
+
+        Dataset<Row> df =
+                inputReader.read(inputPath, jsc);
+
+        Dataset<Row> transformed = GeometryBuilder.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
+
+        Long totalRowsHint =
+                bucketServiceForGeohashindexing.updateBucket(
+                        silver
+                );
+
+        transformed =
+                SpatialTransformerForGeohashIndexing.transform(
+                        transformed,
+                        bucketFileName,
+                        jsc,
+                        rowsCapableOfProcessingByDriver,
+                        maxPartitionSize,
+                        totalRowsHint
+                );
+
+        silverGeohashWriter.writeSilver(
+                silver,
+                transformed
+        );
+    }
+
+    public void customWriterWithoutBboxIndex(
+            TableSpec silver,
+            String inputPath,
+            String xColumn, String yColumn)
+            throws NoSuchTableException {
+
+        Dataset<Row> df;
+
+        if (inputPath.endsWith(".parquet")) {
+            df = spark.read().parquet(inputPath);
+        } else if (inputPath.endsWith(".csv")) {
+            df = spark.read().csv(inputPath);
+        } else {
+            throw new IllegalArgumentException(
+                    "Unsupported file format: " + inputPath);
+        }
+
+        Dataset<Row> transformed = GeometryBuilder.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
+
+        silverBboxWriter.writeSilver(
+                silver,
+                transformed
+        );
+
     }
 }
 

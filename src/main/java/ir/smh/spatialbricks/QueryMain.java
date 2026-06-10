@@ -23,8 +23,15 @@ public class QueryMain {
         var spark = SparkConfig.createSession("../datasets/newyork");
         spark.sparkContext().setLogLevel("ERROR");
 
+        TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
+
+        BucketServiceForBboxIndexing a= new BucketServiceForBboxIndexing(spark);
+        a.updateBucket(silver);
+
         SedonaContext.create(spark);
         SedonaSQLRegistrator.registerAll(spark);
+
+
         /*
 
         spark.sql("""
@@ -53,11 +60,25 @@ public class QueryMain {
 
          */
 
-        spark.sql("""          
-                SELECT count(*) AS bronzecount
-                FROM  silverlayer.FireStations
-                WHERE (geometry.parts[0].coordinates[0].x) > -74.0 and geometry.parts[0].coordinates[0].x < -73.5 and geometry.bbox_partitioning.max_x>-74 and geometry.bbox_partitioning.min_x<-73.5
-         """).show();
+        spark.sql("""
+    SELECT
+        geometry.bbox_partitioning.min_x AS min_x,
+        geometry.bbox_partitioning.max_x AS max_x,
+        geometry.bbox_partitioning.min_y AS min_y,
+        geometry.bbox_partitioning.max_y AS max_y,
+        geometry.bbox_partitioning.region_code AS code,
+        
+        COUNT(*) AS cnt
+    FROM silverlayer.FireStations
+    GROUP BY
+        geometry.bbox_partitioning.min_x,
+        geometry.bbox_partitioning.max_x,
+        geometry.bbox_partitioning.min_y,
+        geometry.bbox_partitioning.max_y,
+        geometry.bbox_partitioning.region_code
+        
+    ORDER BY cnt DESC
+""").show(false);
 
 
          /*

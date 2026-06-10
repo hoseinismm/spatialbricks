@@ -30,31 +30,33 @@ public final class GeometryBuilder implements Serializable {
                 .add("floor", "integer", false)
                 .add("ceiling", "integer", false);
 
-        return df.withColumn(
-                geometryColumnName,
-                struct(
-                        lit(1).alias("type"),
+        return df
+                .withColumn(
+                        geometryColumnName,
+                        struct(
+                                lit(1).alias("type"),
 
-                        array(
-                                struct(
-                                        array(
-                                                struct(
-                                                        col(xColumn).alias("x"),
-                                                        col(yColumn).alias("y")
-                                                )
-                                        ).alias("coordinates")
-                                )
-                        ).alias("parts"),
+                                array(
+                                        struct(
+                                                array(
+                                                        struct(
+                                                                col(xColumn).alias("x"),
+                                                                col(yColumn).alias("y")
+                                                        )
+                                                ).alias("coordinates")
+                                        )
+                                ).alias("parts"),
 
-                        lit(null)
-                                .cast(bboxType)
-                                .alias("bbox_partitioning"),
+                                lit(null)
+                                        .cast(bboxType)
+                                        .alias("bbox_partitioning"),
 
-                        lit(null)
-                                .cast(bucketRangeType)
-                                .alias("geohash_partitioning")
+                                lit(null)
+                                        .cast(bucketRangeType)
+                                        .alias("geohash_partitioning")
+                        )
                 )
-        );
+                .drop(xColumn, yColumn);
 
     }
 }

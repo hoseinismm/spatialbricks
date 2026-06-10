@@ -40,8 +40,13 @@ public class SparkGeohashUdfs {
                         return RowFactory.create(null, null);
                     }
 
-                    int geo =
-                            GeometryResult.computeGeohashNumeric(x,y);
+                    Integer geoObj = GeometryResult.computeGeohashNumeric(x, y);
+
+                    if (geoObj == null) {
+                        return RowFactory.create(null, null);
+                    }
+
+                    int geo = geoObj;
 
                     int idx = Arrays.binarySearch(arr, geo);
                     int pos = (idx >= 0) ? idx : -(idx + 1);

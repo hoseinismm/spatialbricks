@@ -151,30 +151,34 @@ public final class SparkBboxUdfs {
 
         while (bucket.hasChildren) {
 
-            if (maxX <= bucket.xmid &&
-                    minY >= bucket.ymid) {
 
-                bucket = bucket.topleft;
 
-            } else if (minX >= bucket.xmid &&
-                    minY >= bucket.ymid) {
+                if (maxX <= bucket.xmid &&
+                        minY >= bucket.ymid) {
 
-                bucket = bucket.topright;
+                    bucket = bucket.topleft;
 
-            } else if (maxX <= bucket.xmid &&
-                    maxY <= bucket.ymid) {
+                } else if (minX >= bucket.xmid &&
+                        minY >= bucket.ymid) {
 
-                bucket = bucket.bottomleft;
+                    bucket = bucket.topright;
 
-            } else if (minX >= bucket.xmid &&
-                    maxY <= bucket.ymid) {
+                } else if (maxX <= bucket.xmid &&
+                        maxY <= bucket.ymid) {
 
-                bucket = bucket.bottomright;
+                    bucket = bucket.bottomleft;
 
-            } else {
-                break;
-            }
+                } else if (minX >= bucket.xmid &&
+                        maxY <= bucket.ymid) {
+
+                    bucket = bucket.bottomright;
+
+                }
+             else {
+                    break;
+                }
         }
+
 
         return bucket;
     }

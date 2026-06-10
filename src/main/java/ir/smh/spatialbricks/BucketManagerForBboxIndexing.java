@@ -74,7 +74,7 @@ public class BucketManagerForBboxIndexing {
                 }
 
                 if ((current.count >= effectiveMaxSize)
-                        && (current.xmax - current.xmin > 0.001) && !current.hasChildren) {
+                        && (current.xmax - current.xmin > 0.0001) && !current.hasChildren) {
 
                     if (max_x <= current.xmid && min_y >= current.ymid) {
                         current.createChild();
@@ -272,10 +272,10 @@ public class BucketManagerForBboxIndexing {
         Bucket node = decode(code, bucket);
         node.fraction = 0;
 
-        System.out.println("oldcount: " + bucket.count + " correct is:" + count);
+        System.out.println("oldcount: " + node.count + " correct is:" + count+ "code:"+node.code);
 
         if (count!=null) {
-            bucket.count = count;
+            node.count = count;
         } else {
             bucket.count = 0;
         }

@@ -2,35 +2,38 @@ package ir.smh.spatialbricks;
 
 import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.encoder.GeometryReader;
-import ir.smh.spatialbricks.encoder.udf.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.encoder.udf.converttogeometry.WKTReaderAdapter;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
-
 import java.io.IOException;
 
-
-public class Main {
+public class MainForUkraineFlightsDataset {
 
     SpatialWriting spatialWriting;
 
-
     public static void main(String[] args) throws NoSuchTableException, IOException, InterruptedException {
 
-        var spark = SparkConfig.createSession("../datasets/newyork");
+        var spark = SparkConfig.createSession("../datasets/ukrainflights");
 
         spark.sparkContext().setLogLevel("ERROR");
 
         SedonaContext.create(spark);
+
+        //GeometryReader<?> adapter = new WKTReaderAdapter();
 
         //GeometryReader<?> adapter = new geoJsonGeometricalAdapter();
 
         SpatialWriting etl3= new SpatialWriting(spark);
 
         //TableSpec bronze = new TableSpec("bronzelayer", "FireStations", "");
-        TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
+        TableSpec silver = new TableSpec("silverlayer", "ukrainflights", "");
 
-        etl3.customWriter( silver, "../datasets/newyork/raw-files/yellow_tripdata_2009-01.parquet", 25000, 1048576, "Start_lon", "Start_lat");
+        String path =   "../datasets/ukrainflights/ukraine_coords.parquet";
+
+        etl3.customWriter(silver,
+                path,150000L, 131072L, "lon","lat"
+            );
 
         //AddOrUpdateBboxIndex newindexjob= new AddOrUpdateBboxIndex(spark);
 
@@ -58,7 +61,6 @@ public class Main {
             FROM silverlayer.FireStations.snapshots
             """).show(false);
             */
-
 
         spark.stop();
         Thread.sleep(3000);
