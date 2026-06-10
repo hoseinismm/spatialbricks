@@ -20,8 +20,12 @@ public class QueryMain {
 
 
 
+
+
         var spark = SparkConfig.createSession("../datasets/newyork");
         spark.sparkContext().setLogLevel("ERROR");
+
+
 
         TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
 

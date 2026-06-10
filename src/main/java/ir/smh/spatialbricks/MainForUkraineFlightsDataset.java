@@ -1,12 +1,12 @@
 package ir.smh.spatialbricks;
 
 import ir.smh.spatialbricks.config.SparkConfig;
-import ir.smh.spatialbricks.encoder.GeometryReader;
-import ir.smh.spatialbricks.encoder.udf.converttogeometry.WKTReaderAdapter;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
 import java.io.IOException;
+
+
 
 public class MainForUkraineFlightsDataset {
 
@@ -34,6 +34,10 @@ public class MainForUkraineFlightsDataset {
         etl3.customWriter(silver,
                 path,150000L, 131072L, "lon","lat"
             );
+
+
+
+
 
         //AddOrUpdateBboxIndex newindexjob= new AddOrUpdateBboxIndex(spark);
 
