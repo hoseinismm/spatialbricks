@@ -2,6 +2,7 @@ package ir.smh.spatialbricks.encoder;
 
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import static org.apache.spark.sql.functions.*;
 
@@ -20,15 +21,11 @@ public final class GeometryBuilder implements Serializable {
     ) {
 
         StructType bboxType = new StructType()
-                .add("min_x", "double", false)
-                .add("min_y", "double", false)
-                .add("max_x", "double", false)
-                .add("max_y", "double", false)
-                .add("region_code", "integer", false);
-
-        StructType bucketRangeType = new StructType()
-                .add("floor", "integer", false)
-                .add("ceiling", "integer", false);
+                .add("min_x", DataTypes.DoubleType, false)
+                .add("min_y", DataTypes.DoubleType, false)
+                .add("max_x", DataTypes.DoubleType, false)
+                .add("max_y", DataTypes.DoubleType, false)
+                .add("region_code", DataTypes.LongType, false);
 
         return df
                 .withColumn(
@@ -49,14 +46,12 @@ public final class GeometryBuilder implements Serializable {
 
                                 lit(null)
                                         .cast(bboxType)
-                                        .alias("bbox_partitioning"),
+                                        .alias("bbox_partitioning")
 
-                                lit(null)
-                                        .cast(bucketRangeType)
-                                        .alias("geohash_partitioning")
+
                         )
                 )
-                .drop(xColumn, yColumn);
+                .select(geometryColumnName);
 
     }
 }

@@ -23,10 +23,6 @@ public class UDFRegistry {
                 .add("x", DataTypes.DoubleType, false)
                 .add("y", DataTypes.DoubleType, false);
 
-        StructType bucketRangeType = new StructType()
-                .add("floor", DataTypes.IntegerType, false)
-                .add("ceiling", DataTypes.IntegerType, false);
-
         StructType partType = new StructType()
                 .add("coordinates", DataTypes.createArrayType(coordType));
 
@@ -35,13 +31,12 @@ public class UDFRegistry {
                 .add("min_y", DataTypes.DoubleType, false)
                 .add("max_x", DataTypes.DoubleType, false)
                 .add("max_y", DataTypes.DoubleType, false)
-                .add("region_code", DataTypes.IntegerType, false);
+                .add("region_code", DataTypes.LongType, false);
 
         StructType geometryType = new StructType()
                 .add("type", DataTypes.IntegerType, false)
                 .add("parts", DataTypes.createArrayType(partType), false)
-                .add(DataTypes.createStructField("bbox_partitioning", bboxType, true))
-                .add(DataTypes.createStructField("geohash_partitioning", bucketRangeType, true));
+                .add(DataTypes.createStructField("bbox_partitioning", bboxType, true));
 
         UDF1<Object, Row> stringOrGeomToGeometry = (Object input) -> {
 
@@ -86,8 +81,6 @@ public class UDFRegistry {
                 values.add(type);            // 0: type
                 values.add(partRows);        // 1: parts
                 values.add(null);            // 2: bboxpartitioning
-                values.add(null);            // 3: geohashpartitioning
-
 
                 return new GenericRowWithSchema(values.toArray(), geometryType);
 

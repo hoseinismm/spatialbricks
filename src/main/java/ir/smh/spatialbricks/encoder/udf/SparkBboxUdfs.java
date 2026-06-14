@@ -64,7 +64,7 @@ public final class SparkBboxUdfs {
                             ),
                             DataTypes.createStructField(
                                     "region_code",
-                                    DataTypes.IntegerType,
+                                    DataTypes.LongType,
                                     true
                             )
                     });

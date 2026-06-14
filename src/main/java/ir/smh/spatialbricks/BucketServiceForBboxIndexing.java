@@ -18,7 +18,7 @@ public class BucketServiceForBboxIndexing {
         this.spark = spark;
     }
 
-    Long updateBucket(TableSpec silver) {
+    public Long updateBucket(TableSpec silver) {
 
         String fullName = silver.database() + "." + silver.table();
         String metadataTable = fullName + ".partitions";

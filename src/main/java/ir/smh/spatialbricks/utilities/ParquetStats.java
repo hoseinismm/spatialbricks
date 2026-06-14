@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.utilities;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;

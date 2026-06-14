@@ -1,6 +1,4 @@
 package ir.smh.spatialbricks;
-import ir.smh.spatialbricks.createsql.IcebergTableCreator;
-import ir.smh.spatialbricks.createsql.IcebergTableCreatorWithPartitioning;
 import ir.smh.spatialbricks.encoder.GeometryBuilder;
 
 import ir.smh.spatialbricks.encoder.GeometryReader;
@@ -15,7 +13,7 @@ import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.List;
+
 
 public class SpatialWriting implements Serializable {
 
@@ -23,9 +21,7 @@ public class SpatialWriting implements Serializable {
     private final GeometryReader<?> adapter;
     private final SpatialInputReader inputReader;
     private final BronzeWriter bronzeWriter;
-    private final SilverGeohashWriter silverGeohashWriter;
     private final SilverBboxWriter silverBboxWriter;
-    private final BucketServiceForGeohashIndexing bucketServiceForGeohashindexing;
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
 
     public SpatialWriting
@@ -34,9 +30,7 @@ public class SpatialWriting implements Serializable {
         this.adapter = adapter;
         this.inputReader = new SpatialInputReader(spark);
         this.bronzeWriter = new BronzeWriter(spark);
-        this.silverGeohashWriter = new SilverGeohashWriter(spark);
         this.silverBboxWriter = new SilverBboxWriter(spark);
-        this.bucketServiceForGeohashindexing = new BucketServiceForGeohashIndexing(spark);
         this.bucketServiceForBboxIndexing = new BucketServiceForBboxIndexing(spark);
     }
 
@@ -44,24 +38,7 @@ public class SpatialWriting implements Serializable {
         this(spark, null);
     }
 
-    void silverLayerWithoutIndex(TableSpec silver, String inputPath, String typeOfPartitioning) throws NoSuchTableException {
 
-        UDFRegistry.registerAll(spark,adapter);
-
-        JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
-
-        Dataset<Row> df = inputReader.read(inputPath, jsc);
-
-        df = checkGeometryColumnName(df);
-
-        df= SpatialTransformerForConvertGeometry.transform(df);
-
-        if ("bbox".equals(typeOfPartitioning)) {
-            silverBboxWriter.writeSilver(silver, df);
-        } else if ("geohash".equals(typeOfPartitioning)) {
-            silverGeohashWriter.writeSilver(silver, df);
-        }
-    }
 
     public void bronzeLayer(TableSpec bronze, String inputPath)
             throws NoSuchTableException, IOException {
@@ -75,34 +52,36 @@ public class SpatialWriting implements Serializable {
         bronzeWriter.writeBronze(bronze, df);
     }
 
-    public void silverLayerWithGeohashIndexing(TableSpec silver, String inputPath,long rowsCapableOfProcessingByDriver, long maxPartitionSize)
-            throws NoSuchTableException {
+    public void silverLayerWithoutBboxIndexing(
+            TableSpec silver,
+            String inputPath
+            )   throws NoSuchTableException {
 
+        JavaSparkContext jsc =
+                JavaSparkContext.fromSparkContext(
+                        spark.sparkContext());
 
-        UDFRegistry.registerAll(spark,adapter);
+        Dataset<Row> df =
+                inputReader.read(inputPath, jsc);
 
-        String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
+        silverLayerWithoutBboxIndexing(
+                silver,
+                df
+        );
+    }
 
-        JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
-
-        Long totalRowsHint= bucketServiceForGeohashindexing.updateBucket(silver);
-
-        Dataset<Row> df = inputReader.read(inputPath, jsc);
-
-        df = checkGeometryColumnName(df);
+    public void silverLayerWithoutBboxIndexing(
+            TableSpec silver,
+            Dataset<Row> df
+    )   throws NoSuchTableException {
 
         Dataset<Row> transformed = SpatialTransformerForConvertGeometry.transform(df);
 
-        transformed = SpatialTransformerForGeohashIndexing.transform(
-                transformed,bucketFileName,
-                jsc,
-                rowsCapableOfProcessingByDriver,
-                maxPartitionSize,
-                totalRowsHint
-        );
-
-        silverGeohashWriter.writeSilver(silver, transformed);
+        silverBboxWriter.writeSilver(silver, transformed);
     }
+
+
+
 
     public void silverLayerWithBboxIndexing(
             TableSpec silver,
@@ -227,52 +206,6 @@ public class SpatialWriting implements Serializable {
                 );
 
         silverBboxWriter.writeSilver(
-                silver,
-                transformed
-        );
-    }
-
-    public void customWriterWithGeohashIndex(
-            TableSpec silver,
-            String inputPath,
-            long rowsCapableOfProcessingByDriver,
-            long maxPartitionSize, String xColumn, String yColumn)
-            throws NoSuchTableException {
-
-        UDFRegistry.registerAll(spark, adapter);
-
-        String bucketFileName =
-                "bucket_"
-                        + silver.database()
-                        + "_"
-                        + silver.table()
-                        + ".gz";
-
-        JavaSparkContext jsc =
-                JavaSparkContext.fromSparkContext(
-                        spark.sparkContext());
-
-        Dataset<Row> df =
-                inputReader.read(inputPath, jsc);
-
-        Dataset<Row> transformed = GeometryBuilder.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
-
-        Long totalRowsHint =
-                bucketServiceForGeohashindexing.updateBucket(
-                        silver
-                );
-
-        transformed =
-                SpatialTransformerForGeohashIndexing.transform(
-                        transformed,
-                        bucketFileName,
-                        jsc,
-                        rowsCapableOfProcessingByDriver,
-                        maxPartitionSize,
-                        totalRowsHint
-                );
-
-        silverGeohashWriter.writeSilver(
                 silver,
                 transformed
         );

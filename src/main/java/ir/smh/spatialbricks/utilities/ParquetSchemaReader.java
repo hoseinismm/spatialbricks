@@ -1,8 +1,8 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.utilities;
 
 
+import ir.smh.spatialbricks.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
-import ir.smh.spatialbricks.createsql.IcebergTableCreator;
 import ir.smh.spatialbricks.encoder.GeometryResult;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -11,7 +11,6 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.functions;
 import org.apache.spark.sql.types.DataTypes;
 

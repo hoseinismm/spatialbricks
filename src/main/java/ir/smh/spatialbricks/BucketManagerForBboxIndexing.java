@@ -122,10 +122,10 @@ public class BucketManagerForBboxIndexing {
         public Bucket bottomleft;
         public boolean hasChildren;
         public double fraction;
-        public int code;
+        public long code;
 
 
-        Bucket(double xmin, double ymin, double xmax, double ymax, int code) {
+        Bucket(double xmin, double ymin, double xmax, double ymax, long code) {
 
             this.xmin = xmin;
             this.xmax = xmax;
@@ -176,8 +176,8 @@ public class BucketManagerForBboxIndexing {
         }
     }
 
-    public static Bucket initialBucket(double min_x, double max_x, double min_y, double max_y) {
-        Bucket initial = new Bucket(min_x, max_x, min_y, max_y, 1);
+    public static Bucket initialBucket(double min_x, double min_y, double max_x, double max_y) {
+        Bucket initial = new Bucket(min_x, min_y,max_x, max_y, 1);
         splitbucket(initial);
         System.out.println("bucketinitial created");
         return initial;
@@ -257,7 +257,7 @@ public class BucketManagerForBboxIndexing {
     public static void updateTreeFromStats(List<Row> rows, Bucket root) {
         for (Row row : rows) {
 
-            Integer f = row.getAs("region_code");
+            Long f = row.getAs("region_code");
             Long count = row.getAs("total_count");
 
             if (f != null) {
@@ -266,7 +266,7 @@ public class BucketManagerForBboxIndexing {
         }
     }
 
-    private static void updateBucket(Bucket bucket, int code, Long count) {
+    private static void updateBucket(Bucket bucket, long code, Long count) {
 
         if (bucket == null) return;
         Bucket node = decode(code, bucket);
@@ -281,9 +281,9 @@ public class BucketManagerForBboxIndexing {
         }
     }
 
-    public static Bucket decode(int code, Bucket node) {
+    public static Bucket decode(long code, Bucket node) {
 
-        String binary = Integer.toBinaryString(code);
+        String binary = Long.toBinaryString(code);
 
         // باید با 1 شروع شود
         if (binary.charAt(0) != '1') {

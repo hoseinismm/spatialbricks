@@ -1,8 +1,9 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.utilities;
 
 
+import ir.smh.spatialbricks.BucketServiceForBboxIndexing;
+import ir.smh.spatialbricks.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
-import org.apache.iceberg.spark.Spark3Util;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
