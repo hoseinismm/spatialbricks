@@ -23,8 +23,8 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
             Long totalRowsHint
     )
     {
-        long n3 = df.count();
-        System.out.println("Row count n3 = " + n3);
+        //long n3 = df.count();
+        //System.out.println("Row count n3 = " + n3);
 
         BucketManagerForBboxIndexing.Bucket rootBucket =
                 BucketManagerForBboxIndexing.computeBucketBorders(

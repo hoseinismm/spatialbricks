@@ -37,9 +37,9 @@ public class portotaxi {
         testSpeedGeoParquet(spark, path);
         testSpeedBboxIndexing(spark, silver);
 
-        //testConvertionToGeometryForSpatialLakehouse(spark,silver);
-        //testConvertionToGeometryForSpatialLakehouse(spark,silver2);
-        //testConvertionToGeometryForGeoparquet(spark,path);
+        testConvertionToGeometryForSpatialLakehouse(spark,silver);
+        testConvertionToGeometryForSpatialLakehouse(spark,silver2);
+        testConvertionToGeometryForGeoparquet(spark,path);
     }
 
     public static void testSpeedGeoParquet(SparkSession spark, String path) throws NoSuchTableException {
@@ -130,13 +130,13 @@ public class portotaxi {
 
         System.out.println("Press ENTER to exit...");
         System.in.read();
-
     }
 
     public static void testConvertionToGeometryForSpatialLakehouse(SparkSession spark, TableSpec silver) throws Exception {
 
         String fullName = silver.database() + "." + silver.table();
 
+        long start = System.currentTimeMillis();
         Dataset<Row> t1 = spark.read()
              .format("iceberg")
              .load(fullName)
@@ -148,24 +148,19 @@ public class portotaxi {
                         expr("ST_Point(geometry.parts[0].coordinates[0].x, geometry.parts[0].coordinates[0].y)")
                 );
 
-        long start = System.currentTimeMillis();
-
         t2.selectExpr("ST_X(geom) as x")
                 .agg(expr("sum(x)"))
                 .show();
-
         System.out.println("Iceberg"+fullName+" decode time = " + (System.currentTimeMillis() - start));
 
     }
 
     public static void testConvertionToGeometryForGeoparquet(SparkSession spark, String path) throws Exception {
+        long start = System.currentTimeMillis();
         Dataset<Row> t1 = spark.read()
                 .parquet(path)
                 .withColumn("geom", expr("ST_GeomFromWKB(geometry)"));
         Dataset<Row> bigger = t1;
-
-
-        long start = System.currentTimeMillis();
 
         bigger.selectExpr("ST_X(geom) as x")
                 .agg(expr("sum(x)"))

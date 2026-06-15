@@ -8,9 +8,9 @@ import java.io.*;
 public class Convertgeojson {
     public static void main(String[] args) throws IOException {
         // مسیر فایل ورودی (GeoJSON با FeatureCollection)
-        File inputFile = new File("../datasets/portotaxi/portotaxi.geojson");
+        File inputFile = new File("../datasets/internet_and_voice_coverage/voice-bronze-layer/F477_Voice_1412.geojson");
         // مسیر فایل خروجی (NDJSON)
-        File outputFile = new File("../datasets/portotaxi/portotaxiconverted.geojson");
+        File outputFile = new File("../datasets/internet_and_voice_coverage/voice-bronze-layer/F477_Voice_1412b.geojson");
 
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(inputFile);

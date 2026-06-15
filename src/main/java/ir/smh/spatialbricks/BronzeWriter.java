@@ -35,6 +35,21 @@ public class BronzeWriter {
         );
     }
 
+    void writeBronzeBinary(TableSpec bronze, Dataset<Row> df) throws NoSuchTableException {
+
+        Dataset<Row> output = df;
+
+        if (Arrays.asList(df.columns()).contains("geometry")) {
+            output = df.withColumn("geometry", expr("ST_AsBinary(geometry)"));
+        }
+
+        createOrAppend(
+                output,
+                bronze.database(),
+                bronze.table()
+        );
+    }
+
     private void createOrAppend(
             Dataset<Row> df,
             String database,

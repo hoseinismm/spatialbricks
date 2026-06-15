@@ -52,6 +52,18 @@ public class SpatialWriting implements Serializable {
         bronzeWriter.writeBronze(bronze, df);
     }
 
+    public void bronzeLayerBinary(TableSpec bronze, String inputPath)
+            throws NoSuchTableException, IOException {
+
+        JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
+
+        Dataset<Row> df = inputReader.read(inputPath, jsc);
+
+        df = checkGeometryColumnName(df);
+
+        bronzeWriter.writeBronzeBinary(bronze, df);
+    }
+
     public void silverLayerWithoutBboxIndexing(
             TableSpec silver,
             String inputPath

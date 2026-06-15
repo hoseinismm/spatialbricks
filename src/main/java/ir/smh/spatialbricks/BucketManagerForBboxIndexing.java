@@ -52,7 +52,7 @@ public class BucketManagerForBboxIndexing {
 
                 Bucket current = rootBucket;
 
-                if (bucketOutOfRange(min_x, max_x, min_y, max_y, current)) {
+                if (bucketOutOfRange(min_x,min_y ,max_x , max_y, current)) {
                     System.out.println(
                             "*********this geo is out of range: "
                                     + min_x + ", " + min_y + ", " + max_x + ", " + max_y

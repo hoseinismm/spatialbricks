@@ -14,8 +14,6 @@ import java.io.IOException;
 
 public class CreatePortoTaxi {
 
-    SpatialWriting spatialWriting;
-
     public static void main(String[] args) throws NoSuchTableException, IOException, InterruptedException {
 
         var spark = SparkConfig.createSession("../datasets/portotaxi");
@@ -26,7 +24,7 @@ public class CreatePortoTaxi {
 
         GeometryReader<?>  geoparqetFile= new WKBReaderAdapter();
 
-        SpatialWriting etl3= new SpatialWriting(spark,geoparqetFile );
+        SpatialWriting spatialWriting= new SpatialWriting(spark,geoparqetFile );
 
         TableSpec silver = new TableSpec("silverlayer", "portotaxi", "");
 
@@ -34,10 +32,10 @@ public class CreatePortoTaxi {
 
         for (int i=0; i<35; i++) {
             String path = String.format("../datasets/portotaxi/porto_taxi_chunk_%d.parquet", i);
-            etl3.silverLayerWithBboxIndexing(silver,
+            spatialWriting.silverLayerWithBboxIndexing(silver,
                     path, 150000L, 131072L
             );
-            etl3.silverLayerWithoutBboxIndexing(silverunindexed, path );
+            spatialWriting.silverLayerWithoutBboxIndexing(silverunindexed, path );
         }
 
         spark.stop();
