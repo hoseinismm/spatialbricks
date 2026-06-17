@@ -5,6 +5,8 @@ import ir.smh.spatialbricks.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.GeometryReader;
+import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
+import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.geoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.geoJsonReaderAdapter;
 import org.apache.sedona.spark.SedonaContext;
@@ -24,9 +26,11 @@ public class CreateInternetAndVoiceCoverage {
 
         GeometryReader<?>  geoJsonFile= new geoJsonGeometricalAdapter();
 
-        SpatialWriting spatialWriting= new SpatialWriting(spark,geoJsonFile );
+        UDFRegistry udfRegistry = new FlattenSpatialParquet();
 
-        TableSpec silver = new TableSpec("indexeddataset", "internet_and_voice_coverage", "");
+        SpatialWriting spatialWriting= new SpatialWriting(spark,geoJsonFile, udfRegistry  );
+
+        TableSpec flattenSilver = new TableSpec("flattenindexeddataset", "internet_and_voice_coverage", "");
 
         TableSpec silverunindexed = new TableSpec("unindexeddataset", "internet_and_voice_coverage", "");
 
@@ -38,13 +42,13 @@ public class CreateInternetAndVoiceCoverage {
 
         String path = String.format("../datasets/internet_and_voice_coverage/voice-bronze-layer/F477_Voice_1412b.geojson");
 
-        //spatialWriting.silverLayerWithBboxIndexing(silver, path, 150000L, 131072L);
+        spatialWriting.silverLayerWithBboxIndexing(flattenSilver, path, 150000L, 131072L);
 
         //spatialWriting.silverLayerWithoutBboxIndexing(silverunindexed, path );
 
         //spatialWriting.bronzeLayer(bronze,path);
 
-        spatialWriting.bronzeLayerBinary(bronze2,path);
+        //spatialWriting.bronzeLayerBinary(bronze2,path);
 
         spark.stop();
 

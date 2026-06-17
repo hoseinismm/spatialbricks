@@ -2,7 +2,6 @@ package ir.smh.spatialbricks.test_queries;
 
 import ir.smh.spatialbricks.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
-import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.udf.ConvertToSedonaUdfRegistry;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
@@ -17,11 +16,6 @@ public class internatandvoicecoverage {
 
     public static void main(String[] args) throws Exception {
 
-        System.out.println(
-                "Max Heap = " +
-                        Runtime.getRuntime().maxMemory() / 1024 / 1024 +
-                        " MB"
-        );
 
         String path = "../datasets/internet_and_voice_coverage/binaryformat/internet_and_voice_coverage/output_geoparquet/";
 
@@ -35,12 +29,13 @@ public class internatandvoicecoverage {
         SedonaSQLRegistrator.registerAll(spark);
         ConvertToSedonaUdfRegistry.registerAll(spark);
 
-        //testSpeedGeoParquet(spark, path);
-        //testSpeedBboxIndexing(spark, silver);
+        testSpeedGeoParquet(spark, path);
+        testSpeedBboxIndexing(spark, silver);
 
-        //testConvertionToGeometryForSpatialLakehouse(spark,silver);
-        //testConvertionToGeometryForSpatialLakehouse(spark,silver2);
-        //testConvertionToGeometryForGeoparquet(spark,path);
+
+        testConvertionToGeometryForSpatialLakehouse(spark,silver);
+        testConvertionToGeometryForSpatialLakehouse(spark,silver2);
+        testConvertionToGeometryForGeoparquet(spark,path);
 
         System.in.read();
         spark.stop();
@@ -104,8 +99,6 @@ public class internatandvoicecoverage {
         long duration = System.currentTimeMillis() - start;
 
         System.out.println("Querying from iceberg table time " + duration);
-
-        System.out.println("Press ENTER to exit...");
 
     }
 

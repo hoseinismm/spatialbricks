@@ -1,6 +1,7 @@
 package ir.smh.spatialbricks;
 import ir.smh.spatialbricks.encoder.GeometryBuilder;
 
+import ir.smh.spatialbricks.encoder.GeometryBuilder2;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.spark.sql.Row;
@@ -23,20 +24,33 @@ public class SpatialWriting implements Serializable {
     private final BronzeWriter bronzeWriter;
     private final SilverBboxWriter silverBboxWriter;
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
+    private final UDFRegistry udfRegistry;
 
     public SpatialWriting
-            (SparkSession spark, GeometryReader<?> adapter) {
+            (SparkSession spark, GeometryReader<?> adapter, UDFRegistry udfRegistry) {
         this.spark = spark;
         this.adapter = adapter;
         this.inputReader = new SpatialInputReader(spark);
         this.bronzeWriter = new BronzeWriter(spark);
         this.silverBboxWriter = new SilverBboxWriter(spark);
         this.bucketServiceForBboxIndexing = new BucketServiceForBboxIndexing(spark);
+        this.udfRegistry = udfRegistry;
+
     }
 
     public SpatialWriting(SparkSession spark) {
-        this(spark, null);
+        this(spark, null, null);
     }
+
+    public SpatialWriting(SparkSession spark, GeometryReader<?> adapter) {
+        this(spark, adapter, null);
+    }
+
+    public SpatialWriting(SparkSession spark, UDFRegistry udfRegistry) {
+        this(spark,  null ,udfRegistry);
+    }
+
+
 
 
 
@@ -87,6 +101,8 @@ public class SpatialWriting implements Serializable {
             Dataset<Row> df
     )   throws NoSuchTableException {
 
+        udfRegistry.registerGeometryUdf(spark, adapter);
+
         Dataset<Row> transformed = SpatialTransformerForConvertGeometry.transform(df);
 
         silverBboxWriter.writeSilver(silver, transformed);
@@ -124,7 +140,7 @@ public class SpatialWriting implements Serializable {
             long maxPartitionSize)
             throws NoSuchTableException {
 
-        UDFRegistry.registerAll(spark, adapter);
+        udfRegistry.registerGeometryUdf(spark, adapter);
 
         String bucketFileName =
                 "bucket_"
@@ -155,7 +171,7 @@ public class SpatialWriting implements Serializable {
                         jsc,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
-                        totalRowsHint
+                        totalRowsHint, udfRegistry
                 );
 
         silverBboxWriter.writeSilver(
@@ -163,6 +179,7 @@ public class SpatialWriting implements Serializable {
                 transformed
         );
     }
+
 
     private Dataset<Row> checkGeometryColumnName(Dataset<Row> df) {
 
@@ -200,7 +217,7 @@ public class SpatialWriting implements Serializable {
         Dataset<Row> df =
                 inputReader.read(inputPath, jsc);
 
-        Dataset<Row> transformed = GeometryBuilder.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
+        Dataset<Row> transformed = GeometryBuilder2.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
 
         Long totalRowsHint =
                 bucketServiceForBboxIndexing.updateBucket(
@@ -214,7 +231,7 @@ public class SpatialWriting implements Serializable {
                         jsc,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
-                        totalRowsHint
+                        totalRowsHint, udfRegistry
                 );
 
         silverBboxWriter.writeSilver(
@@ -240,7 +257,7 @@ public class SpatialWriting implements Serializable {
                     "Unsupported file format: " + inputPath);
         }
 
-        Dataset<Row> transformed = GeometryBuilder.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
+        Dataset<Row> transformed = GeometryBuilder2.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
 
         silverBboxWriter.writeSilver(
                 silver,

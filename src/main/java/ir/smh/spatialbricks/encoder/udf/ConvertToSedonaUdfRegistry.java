@@ -2,6 +2,7 @@ package ir.smh.spatialbricks.encoder.udf;
 
 import ir.smh.spatialbricks.decoder.GeometryDecoder;
 
+import ir.smh.spatialbricks.decoder.GeometryDecoder2;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.sedona_sql.UDT.GeometryUDT$;
@@ -12,7 +13,7 @@ public class ConvertToSedonaUdfRegistry {
 
         spark.udf().register(
                 "decodeGeometry",
-                (Row geoRow) -> GeometryDecoder.geometryToJTS(geoRow),
+                (Row geoRow) -> GeometryDecoder2.geometryToJTS(geoRow),
                 GeometryUDT$.MODULE$
         );
     }

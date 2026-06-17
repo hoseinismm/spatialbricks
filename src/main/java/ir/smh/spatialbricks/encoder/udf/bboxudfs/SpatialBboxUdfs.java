@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks.encoder.udf;
+package ir.smh.spatialbricks.encoder.udf.bboxudfs;
 
 import ir.smh.spatialbricks.BucketManagerForBboxIndexing;
 import org.apache.spark.broadcast.Broadcast;
@@ -9,12 +9,12 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.Row;
 import scala.collection.Seq;
-public final class SparkBboxUdfs {
+public final class SpatialBboxUdfs implements  SparkBboxUdfs {
 
-    private SparkBboxUdfs() {
+    private SpatialBboxUdfs() {
     }
 
-    private static final StructType BBOX_SCHEMA =
+    private final StructType BBOX_SCHEMA =
             DataTypes.createStructType(
                     new StructField[]{
                             DataTypes.createStructField(
@@ -39,7 +39,7 @@ public final class SparkBboxUdfs {
                             )
                     });
 
-    private static final StructType BUCKET_SCHEMA =
+    private final StructType BUCKET_SCHEMA =
             DataTypes.createStructType(
                     new StructField[]{
                             DataTypes.createStructField(
@@ -69,7 +69,7 @@ public final class SparkBboxUdfs {
                             )
                     });
 
-    public static void registerCalculateBboxUdf(
+    public void registerCalculateBboxUdf(
             SparkSession spark) {
 
         spark.udf().register(
@@ -98,7 +98,7 @@ public final class SparkBboxUdfs {
         );
     }
 
-    public static void registerFindBucketUdf(
+    public void registerFindBucketUdf(
             SparkSession spark,
             Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets) {
 
@@ -142,7 +142,7 @@ public final class SparkBboxUdfs {
         );
     }
 
-    private static BucketManagerForBboxIndexing.Bucket findBucket(
+    private BucketManagerForBboxIndexing.Bucket findBucket(
             BucketManagerForBboxIndexing.Bucket bucket,
             double minX,
             double minY,
@@ -183,7 +183,7 @@ public final class SparkBboxUdfs {
         return bucket;
     }
 
-    private static double[] calculateBounds(
+    private double[] calculateBounds(
             Seq<Row> parts) {
 
         if (parts == null || parts.isEmpty()) {

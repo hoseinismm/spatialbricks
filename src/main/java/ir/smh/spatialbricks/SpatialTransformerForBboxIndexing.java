@@ -1,7 +1,8 @@
 package ir.smh.spatialbricks;
 
 
-import ir.smh.spatialbricks.encoder.udf.SparkBboxUdfs;
+
+import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -20,7 +21,8 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
             JavaSparkContext jsc,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
-            Long totalRowsHint
+            Long totalRowsHint,
+            UDFRegistry udfregistry
     )
     {
         //long n3 = df.count();
@@ -38,7 +40,7 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
         Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets =
                 jsc.broadcast(rootBucket);
 
-        SparkBboxUdfs.registerFindBucketUdf(
+        udfregistry.registerBucketUdf(
                 df.sparkSession(),
                 broadcastRootBuckets
         );
