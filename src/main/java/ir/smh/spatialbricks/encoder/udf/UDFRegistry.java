@@ -9,5 +9,6 @@ public interface UDFRegistry {
     void registerGeometryUdf(SparkSession spark, GeometryReader adapter);
     void registerBucketUdf(SparkSession spark,
                                   Broadcast<BucketManagerForBboxIndexing.Bucket> broadcast);
+    void registerBboxUdf(SparkSession spark);
 
 }

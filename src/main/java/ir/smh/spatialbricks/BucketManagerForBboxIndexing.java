@@ -1,6 +1,6 @@
 package ir.smh.spatialbricks;
 
-import ir.smh.spatialbricks.encoder.udf.SparkBboxUdfs;
+import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import static org.apache.spark.sql.functions.callUDF;
@@ -203,7 +203,8 @@ public class BucketManagerForBboxIndexing {
             String bucketFile,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
-            Long totalRowsHint) {
+            Long totalRowsHint,
+            UDFRegistry udfRegistry) {
 
         long totalRows =
                 totalRowsHint != null
@@ -213,7 +214,7 @@ public class BucketManagerForBboxIndexing {
         double fraction =
                 Math.min(1.0, (double) rowsCapableOfProcessingByDriver / totalRows);
 
-        SparkBboxUdfs.registerCalculateBboxUdf(
+        udfRegistry.registerBboxUdf(
                 df.sparkSession()
         );
 
@@ -222,7 +223,7 @@ public class BucketManagerForBboxIndexing {
                 .select(
                         callUDF(
                                 "calculateBbox",
-                                col("geometry.parts")
+                                col("geometry")
                         ).alias("bbox")
                 );
         List<Row> rows = bboxDf.collectAsList();

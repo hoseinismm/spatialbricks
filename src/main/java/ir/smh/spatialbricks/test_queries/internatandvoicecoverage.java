@@ -25,16 +25,20 @@ public class internatandvoicecoverage {
 
         TableSpec silver2 = new TableSpec("unindexeddataset", "internet_and_voice_coverage", "");
 
+        TableSpec silver3 = new TableSpec("flattenindexeddataset", "internet_and_voice_coverage", "");
+
         SedonaContext.create(spark);
         SedonaSQLRegistrator.registerAll(spark);
         ConvertToSedonaUdfRegistry.registerAll(spark);
 
-        testSpeedGeoParquet(spark, path);
-        testSpeedBboxIndexing(spark, silver);
+        //testSpeedGeoParquet(spark, path);
+        //testSpeedBboxIndexing(spark, silver);
 
 
-        testConvertionToGeometryForSpatialLakehouse(spark,silver);
-        testConvertionToGeometryForSpatialLakehouse(spark,silver2);
+        //testConvertionToGeometryForSpatialLakehouse(spark,silver);
+        //testConvertionToGeometryForSpatialLakehouse(spark,silver2);
+        testConvertionToGeometryForFlatten(spark,silver3);
+
         testConvertionToGeometryForGeoparquet(spark,path);
 
         System.in.read();
@@ -103,6 +107,21 @@ public class internatandvoicecoverage {
     }
 
     public static void testConvertionToGeometryForSpatialLakehouse(SparkSession spark, TableSpec silver) throws Exception {
+
+        String fullName = silver.database() + "." + silver.table();
+
+        long start = System.currentTimeMillis();
+        String sql = String.format("""
+                SELECT SUM(ST_Area(decodeGeometry(geometry)))
+                FROM %s
+                """, fullName);
+        spark.sql(sql).show(false);
+
+        System.out.println("Iceberg"+fullName+" decode time = " + (System.currentTimeMillis() - start));
+
+    }
+
+    public static void testConvertionToGeometryForFlatten(SparkSession spark, TableSpec silver) throws Exception {
 
         String fullName = silver.database() + "." + silver.table();
 

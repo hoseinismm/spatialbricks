@@ -1,6 +1,7 @@
 package ir.smh.spatialbricks;
 
-import ir.smh.spatialbricks.encoder.udf.SparkBboxUdfs;
+
+import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -17,10 +18,12 @@ public class AddOrUpdateBboxIndex {
 
     private final SparkSession spark;
     private final BucketServiceForBboxIndexing bucketService;
+    private  UDFRegistry udfRegistry;
 
-    public AddOrUpdateBboxIndex(SparkSession spark) {
+    public AddOrUpdateBboxIndex(SparkSession spark, UDFRegistry udfRegistry) {
         this.spark = spark;
         this.bucketService = new BucketServiceForBboxIndexing(spark);
+        this.udfRegistry = udfRegistry;
     }
 
     public void addIndexToUnindexedRows(
@@ -99,6 +102,7 @@ public class AddOrUpdateBboxIndex {
                 maxPartitionSize,
                 totalRowsHint,
                 false
+
         );
 
         System.out.println("Reindexing completed.");
@@ -112,6 +116,7 @@ public class AddOrUpdateBboxIndex {
             long maxPartitionSize,
             Long totalRowsHint,
             boolean onlyUnindexed
+
     ) throws IOException {
 
         JavaSparkContext jsc =
@@ -123,13 +128,13 @@ public class AddOrUpdateBboxIndex {
                         bucketFileName,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
-                        totalRowsHint
+                        totalRowsHint, udfRegistry
                 );
 
         Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets =
                 jsc.broadcast(bucket);
 
-        SparkBboxUdfs.registerFindBucketUdf(
+        udfRegistry.registerBucketUdf(
                 spark,
                 broadcastRootBuckets
         );
@@ -145,7 +150,7 @@ public class AddOrUpdateBboxIndex {
                 UPDATE %s
                 SET geometry.bbox_partitioning =
                     findBucket(
-                        geometry.parts
+                        geometry
                     )
                 WHERE %s
                 """,

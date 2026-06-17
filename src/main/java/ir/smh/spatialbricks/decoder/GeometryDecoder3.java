@@ -12,7 +12,7 @@ public class GeometryDecoder3 {
 
     private static final GeometryFactory GF = new GeometryFactory();
 
-    public static Geometry decode(Row row) {
+    public static Geometry geometryToJTS(Row row) {
 
         if (row == null) {
             return null;

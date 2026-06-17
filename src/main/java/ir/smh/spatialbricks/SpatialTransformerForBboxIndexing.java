@@ -34,7 +34,7 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
                         bucketFileName,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
-                        totalRowsHint
+                        totalRowsHint, udfregistry
                 );
 
         Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets =
@@ -51,7 +51,7 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
                         "bbox_partitioning",
                         callUDF(
                                 "findBucket",
-                                col("geometry.parts")
+                                col("geometry")
                         )
                 )
         );

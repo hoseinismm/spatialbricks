@@ -16,6 +16,7 @@ import org.locationtech.jts.geom.Geometry;
 
 import java.io.Serializable;
 
+import java.util.List;
 import java.util.Map;
 
 public class FlattenSpatialParquet implements UDFRegistry, Serializable {
@@ -177,19 +178,20 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
 
         if (geometry == null) return null;
 
-        double[] x = geometry.getAs("x");
-        double[] y = geometry.getAs("y");
+        List<Double> x = geometry.getList(geometry.fieldIndex("x"));
+        List<Double> y = geometry.getList(geometry.fieldIndex("y"));
 
-        if (x == null || y == null || x.length == 0) return null;
+        if (x == null || y == null || x.isEmpty()) return null;
 
         double minX = Double.POSITIVE_INFINITY;
         double minY = Double.POSITIVE_INFINITY;
         double maxX = Double.NEGATIVE_INFINITY;
         double maxY = Double.NEGATIVE_INFINITY;
 
-        for (int i = 0; i < x.length; i++) {
-            double xi = x[i];
-            double yi = y[i];
+        for (int i = 0; i < x.size(); i++) {
+
+            double xi = x.get(i);
+            double yi = y.get(i);
 
             if (xi < minX) minX = xi;
             if (yi < minY) minY = yi;

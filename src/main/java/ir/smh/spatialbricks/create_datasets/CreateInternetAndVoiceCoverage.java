@@ -18,7 +18,7 @@ public class CreateInternetAndVoiceCoverage {
 
     public static void main(String[] args) throws NoSuchTableException, IOException, InterruptedException {
 
-        var spark = SparkConfig.createSession("../datasets/internet_and_voice_coverage");
+        var spark = SparkConfigLocal.createSession("../datasets/internet_and_voice_coverage");
 
         spark.sparkContext().setLogLevel("ERROR");
 
@@ -42,7 +42,7 @@ public class CreateInternetAndVoiceCoverage {
 
         String path = String.format("../datasets/internet_and_voice_coverage/voice-bronze-layer/F477_Voice_1412b.geojson");
 
-        spatialWriting.silverLayerWithBboxIndexing(flattenSilver, path, 150000L, 131072L);
+        spatialWriting.silverLayerWithBboxIndexing(flattenSilver, path, 30000L, 131072L);
 
         //spatialWriting.silverLayerWithoutBboxIndexing(silverunindexed, path );
 
