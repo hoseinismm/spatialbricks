@@ -10,5 +10,5 @@ public interface UDFRegistry {
     void registerBucketUdf(SparkSession spark,
                                   Broadcast<BucketManagerForBboxIndexing.Bucket> broadcast);
     void registerBboxUdf(SparkSession spark);
-
+    void registerDecode(SparkSession spark);
 }

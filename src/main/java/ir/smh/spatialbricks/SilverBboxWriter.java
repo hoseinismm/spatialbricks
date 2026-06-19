@@ -26,6 +26,7 @@ public class SilverBboxWriter {
 
         if (!exists) {
             System.out.println("Now creating silver table with ID column...");
+            transformed.printSchema();
             IcebergTableCreatorWithPartitioning.createIcebergTableFromSchema(
                     spark,
                     transformed.schema(),

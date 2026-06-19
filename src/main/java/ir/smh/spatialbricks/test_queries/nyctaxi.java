@@ -2,8 +2,9 @@ package ir.smh.spatialbricks.test_queries;
 
 import ir.smh.spatialbricks.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
-import ir.smh.spatialbricks.createsql.IcebergTableCreator;
-import ir.smh.spatialbricks.encoder.udf.ConvertToSedonaUdfRegistry;
+import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
+import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
+import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
 import org.apache.spark.sql.Dataset;
@@ -26,7 +27,8 @@ public class nyctaxi {
 
         SedonaContext.create(spark);
         SedonaSQLRegistrator.registerAll(spark);
-        ConvertToSedonaUdfRegistry.registerAll(spark);
+        UDFRegistry udfRegistry= new SpatialParquet();
+        udfRegistry.registerDecode(spark);
 
         testSpeedGeoParquet(spark, path);
         testSpeedBboxIndexing(spark);

@@ -1,6 +1,8 @@
 package ir.smh.spatialbricks.encoder.udf;
 
 import ir.smh.spatialbricks.BucketManagerForBboxIndexing;
+import ir.smh.spatialbricks.decoder.FlattenSpatialParquetDecoder;
+import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.*;
 import org.apache.spark.broadcast.Broadcast;
@@ -9,6 +11,7 @@ import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.api.java.UDF1;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.sedona_sql.UDT.GeometryUDT$;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -54,7 +57,7 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
                     DataTypes.createStructField("x", DataTypes.createArrayType(DataTypes.DoubleType), false),
                     DataTypes.createStructField("y", DataTypes.createArrayType(DataTypes.DoubleType), false),
                     DataTypes.createStructField("parts", DataTypes.createArrayType(DataTypes.IntegerType), false),
-                    DataTypes.createStructField("bbox_partitioning", BBOX_SCHEMA, true)
+                    DataTypes.createStructField("bbox_partitioning", BUCKET_SCHEMA, true)
             });
 
 
@@ -167,6 +170,20 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
                     );
                 },
                 BUCKET_SCHEMA
+        );
+    }
+
+
+    // =========================================================
+    // DECODE UDF
+    // =========================================================
+
+    public void registerDecode(SparkSession spark) {
+
+        spark.udf().register(
+                "decodeGeometry",
+                (Row geoRow) -> FlattenSpatialParquetDecoder.geometryToJTS(geoRow),
+                GeometryUDT$.MODULE$
         );
     }
 

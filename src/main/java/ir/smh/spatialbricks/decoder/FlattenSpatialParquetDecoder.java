@@ -1,14 +1,12 @@
 package ir.smh.spatialbricks.decoder;
 
 import org.apache.spark.sql.Row;
-import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.*;
-import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class GeometryDecoder3 {
+public class FlattenSpatialParquetDecoder {
 
     private static final GeometryFactory GF = new GeometryFactory();
 

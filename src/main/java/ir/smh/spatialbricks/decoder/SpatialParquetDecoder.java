@@ -8,7 +8,7 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GeometryDecoder2 {
+public class SpatialParquetDecoder {
 
     private static final PackedCoordinateSequenceFactory sequenceFactory =
             PackedCoordinateSequenceFactory.DOUBLE_FACTORY;

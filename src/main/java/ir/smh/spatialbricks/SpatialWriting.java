@@ -1,9 +1,10 @@
 package ir.smh.spatialbricks;
-import ir.smh.spatialbricks.encoder.GeometryBuilder;
 
 import ir.smh.spatialbricks.encoder.GeometryBuilder2;
 import ir.smh.spatialbricks.encoder.GeometryReader;
+import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
+import ir.smh.spatialbricks.encoder.udf.converttogeometry.WKBReaderAdapter;
 import org.apache.spark.sql.Row;
 
 import org.apache.spark.api.java.JavaSparkContext;
@@ -39,19 +40,16 @@ public class SpatialWriting implements Serializable {
     }
 
     public SpatialWriting(SparkSession spark) {
-        this(spark, null, null);
+        this(spark, null,new SpatialParquet ());
     }
 
     public SpatialWriting(SparkSession spark, GeometryReader<?> adapter) {
-        this(spark, adapter, null);
+        this(spark, adapter, new SpatialParquet ());
     }
 
     public SpatialWriting(SparkSession spark, UDFRegistry udfRegistry) {
-        this(spark,  null ,udfRegistry);
+        this(spark,  new WKBReaderAdapter(), udfRegistry);
     }
-
-
-
 
 
     public void bronzeLayer(TableSpec bronze, String inputPath)

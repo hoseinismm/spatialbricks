@@ -1,10 +1,12 @@
 package ir.smh.spatialbricks.encoder.udf;
 
 import ir.smh.spatialbricks.BucketManagerForBboxIndexing;
+import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.api.java.UDF1;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.sedona_sql.UDT.GeometryUDT$;
 import org.apache.spark.sql.types.*;
 import org.locationtech.jts.geom.Geometry;
 
@@ -83,22 +85,39 @@ public class SpatialParquet implements UDFRegistry, Serializable {
                 } else {
                     throw new IllegalArgumentException("Unsupported input: " + input.getClass());
                 }
-
                 Map<String, Object> geom = ParseGeometry.parseGeometry(geometry);
 
-                return new GenericRowWithSchema(new Object[]{
-                        geom.get("type"),
-                        geom.get("parts"),
-                        null
-                }, GEOMETRY_TYPE);
+                int type = (int) geom.get("type");
+                @SuppressWarnings("unchecked")
+                List<List<Map<String, Double>>> partsList = (List<List<Map<String, Double>>>) geom.get("parts");
+
+                List<Row> partRows = new ArrayList<>();
+                for (List<Map<String, Double>> part : partsList) {
+                    List<Row> coordRows = new ArrayList<>();
+                    for (Map<String, Double> c : part) {
+                        double x = c.get("x");
+                        double y = c.get("y");
+                        coordRows.add(new GenericRowWithSchema(new Object[]{x, y}, COORD_TYPE));
+                    }
+                    partRows.add(new GenericRowWithSchema(new Object[]{coordRows}, PART_TYPE));
+                }
+
+                List<Object> values = new ArrayList<>();
+                values.add(type);            // 0: type
+                values.add(partRows);        // 1: parts
+                values.add(null);            // 2: bboxpartitioning
+
+                return new GenericRowWithSchema(values.toArray(), GEOMETRY_TYPE);
 
             } catch (Exception e) {
-                System.err.println("Geometry UDF error: " + e.getMessage());
+                System.err.println("Error parsing geometry: " + e.getMessage());
                 return null;
             }
         };
 
+        // ثبت UDF
         spark.udf().register("stringOrGeomToGeometry", udf, GEOMETRY_TYPE);
+
     }
 
     // =========================================================
@@ -163,8 +182,22 @@ public class SpatialParquet implements UDFRegistry, Serializable {
     }
 
     // =========================================================
+    // DECODE UDF
+    // =========================================================
+
+    public void registerDecode(SparkSession spark) {
+
+        spark.udf().register(
+                "decodeGeometry",
+                (Row geoRow) -> SpatialParquetDecoder.geometryToJTS(geoRow),
+                GeometryUDT$.MODULE$
+        );
+    }
+
+    // =========================================================
     // CORE LOGIC
     // =========================================================
+
 
     private double[] calculateBounds(Row geometry) {
 
@@ -224,4 +257,5 @@ public class SpatialParquet implements UDFRegistry, Serializable {
 
         return bucket;
     }
+
 }
