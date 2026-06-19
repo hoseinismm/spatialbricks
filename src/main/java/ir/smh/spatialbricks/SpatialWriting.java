@@ -1,6 +1,5 @@
 package ir.smh.spatialbricks;
 
-import ir.smh.spatialbricks.encoder.GeometryBuilder2;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
@@ -215,7 +214,7 @@ public class SpatialWriting implements Serializable {
         Dataset<Row> df =
                 inputReader.read(inputPath, jsc);
 
-        Dataset<Row> transformed = GeometryBuilder2.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
+        Dataset<Row> transformed = udfRegistry.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
 
         Long totalRowsHint =
                 bucketServiceForBboxIndexing.updateBucket(
@@ -255,7 +254,7 @@ public class SpatialWriting implements Serializable {
                     "Unsupported file format: " + inputPath);
         }
 
-        Dataset<Row> transformed = GeometryBuilder2.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
+        Dataset<Row> transformed = udfRegistry.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
 
         silverBboxWriter.writeSilver(
                 silver,

@@ -6,6 +6,7 @@ import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.*;
 import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
@@ -22,10 +23,10 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.spark.sql.functions.*;
+import static org.apache.spark.sql.functions.lit;
+
 public class FlattenSpatialParquet implements UDFRegistry, Serializable {
-
-
-
 
     public void FlattenSpatialUdfs() {
     }
@@ -246,5 +247,46 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
         }
 
         return bucket;
+    }
+
+    public Dataset<Row> addPointGeometryColumn(
+            Dataset<Row> df,
+            String xColumn,
+            String yColumn,
+            String geometryColumnName
+    ) {
+
+        StructType bboxType = new StructType()
+                .add("min_x", DataTypes.DoubleType, false)
+                .add("min_y", DataTypes.DoubleType, false)
+                .add("max_x", DataTypes.DoubleType, false)
+                .add("max_y", DataTypes.DoubleType, false)
+                .add("region_code", DataTypes.LongType, false);
+
+        return df
+                .withColumn(
+                        geometryColumnName,
+                        struct(
+                                lit(1).alias("type"),
+
+                                array(
+                                        col(xColumn)
+                                ).alias("x"),
+
+                                array(
+                                        col(yColumn)
+                                ).alias("y"),
+
+                                lit(null)
+                                        .cast(DataTypes.createArrayType(DataTypes.IntegerType))
+                                        .alias("parts"),
+
+                                lit(null)
+                                        .cast(bboxType)
+                                        .alias("bbox_partitioning")
+                        )
+                )
+                .select(geometryColumnName);
+
     }
 }

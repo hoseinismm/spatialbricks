@@ -16,6 +16,8 @@ import java.util.*;
 import ir.smh.spatialbricks.encoder.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.*;
 
+import static org.apache.spark.sql.functions.*;
+
 public class SpatialParquet implements UDFRegistry, Serializable {
 
     public SpatialParquet() {
@@ -256,6 +258,47 @@ public class SpatialParquet implements UDFRegistry, Serializable {
         }
 
         return bucket;
+    }
+    public Dataset<Row> addPointGeometryColumn(
+            Dataset<Row> df,
+            String xColumn,
+            String yColumn,
+            String geometryColumnName
+    ) {
+
+        StructType bboxType = new StructType()
+                .add("min_x", DataTypes.DoubleType, false)
+                .add("min_y", DataTypes.DoubleType, false)
+                .add("max_x", DataTypes.DoubleType, false)
+                .add("max_y", DataTypes.DoubleType, false)
+                .add("region_code", DataTypes.LongType, false);
+
+        return df
+                .withColumn(
+                        geometryColumnName,
+                        struct(
+                                lit(1).alias("type"),
+
+                                array(
+                                        struct(
+                                                array(
+                                                        struct(
+                                                                col(xColumn).alias("x"),
+                                                                col(yColumn).alias("y")
+                                                        )
+                                                ).alias("coordinates")
+                                        )
+                                ).alias("parts"),
+
+                                lit(null)
+                                        .cast(bboxType)
+                                        .alias("bbox_partitioning")
+
+
+                        )
+                )
+                .select(geometryColumnName);
+
     }
 
 }
