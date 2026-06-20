@@ -110,7 +110,7 @@ public class GeometryResult {
     public static String computeGeoHash(double lon,double lat) {
         if (lat>=-90 && lat<=90 && lon>=-180 && lon<=180) {
 
-            GeoHash hash = GeoHash.withCharacterPrecision(lat, lon, 6);
+            GeoHash hash = GeoHash.withCharacterPrecision(lat, lon, 8);
             return hash.toBase32();
         }
         return null;

@@ -2,6 +2,7 @@ package ir.smh.spatialbricks.test_queries;
 
 import ir.smh.spatialbricks.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
+import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
@@ -11,34 +12,127 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
+
 import static org.apache.spark.sql.functions.*;
 
 public class nyctaxi {
 
     public static void main(String[] args) throws Exception {
 
-        String path = "../datasets/nyc_taxi/yellow_tripdata_2009_q1_geoparquet.parquet";
+        final int runs = 10;
 
-        var spark = SparkConfig.createSession("../datasets/nyc_taxi");
+        SparkSession spark = createSpark();
 
-        TableSpec silver = new TableSpec("silverlayer", "nyc_taxi", "");
+        String path = "../datasets/nyc_taxi/yellow_tripdata_2009-0*_geoparquet_*.parquet";
 
-        TableSpec silver2 = new TableSpec("silverlayer2", "nyc_taxi", "");
+        TableSpec silverIndexed = new TableSpec("silverIndexed", "nyc_taxi", "");
+        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "nyc_taxi", "");
+        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "nyc_taxi", "");
+        TableSpec flattenSilverUnindexed = new TableSpec("FlattenSilverUnindexed", "nyc_taxi", "");
+
+
+
+        long[][] results = runBenchmarks(
+                spark,
+                runs,
+                path,
+                silverIndexed,
+                silverUnindexed,
+                flattenSilverIndexed,
+                flattenSilverUnindexed
+        );
+
+        writeResults(results, runs);
+
+        spark.stop();
+    }
+
+    private static SparkSession createSpark() {
+
+        SparkSession spark =
+                SparkConfigLocal.createSession("../datasets/nyc_taxi");
 
         SedonaContext.create(spark);
         SedonaSQLRegistrator.registerAll(spark);
-        UDFRegistry udfRegistry= new SpatialParquet();
-        udfRegistry.registerDecode(spark);
 
-        testSpeedGeoParquet(spark, path);
-        testSpeedBboxIndexing(spark);
-
-        testConvertionToGeometryForSpatialLakehouse(spark,silver);
-        testConvertionToGeometryForSpatialLakehouse(spark,silver2);
-        testConvertionToGeometryForGeoparquet(spark,path);
+        return spark;
     }
 
-    public static void testSpeedGeoParquet(SparkSession spark, String path) throws Exception {
+    private static long[][] runBenchmarks(
+            SparkSession spark,
+            int runs,
+            String path,
+            TableSpec silverIndexed,
+            TableSpec silverUnindexed,
+            TableSpec flattenSilverIndexed,
+            TableSpec flattenSilverUnindexed) throws Exception {
+
+        long[][] results = new long[10][runs];
+
+        for (int i = 0; i < runs; i++) {
+
+            System.out.println("Run " + (i + 1));
+
+            results[0][i] = testQueryInGeoParquet(spark, path);
+            results[1][i] = testQuery(spark, silverUnindexed,false,false);
+            results[2][i] = testQuery(spark, silverIndexed, false, true);
+            results[3][i] = testQuery(spark, flattenSilverUnindexed,true, false );
+            results[4][i] = testQuery(spark, flattenSilverIndexed, true, true);
+            results[5][i] = testDecodeForGeoparquet(spark, path);
+            results[6][i] = testDecode(spark, silverUnindexed, new SpatialParquet());
+            results[7][i] = testDecode(spark, silverIndexed, new SpatialParquet());
+            results[8][i] = testDecode(spark, flattenSilverUnindexed, new FlattenSpatialParquet());
+            results[9][i] = testDecode(spark, flattenSilverIndexed, new FlattenSpatialParquet());
+        }
+
+        return results;
+    }
+
+    private static void writeResults(long[][] results, int runs)
+            throws FileNotFoundException {
+
+        String[] names = {
+                "GeoParquet",
+                "Spatial Unindexed",
+                "Spatial Indexed",
+                "Flatten Unindexed",
+                "Flatten Indexed",
+                "GeoParquet",
+                "Spatial Unindexed",
+                "Spatial Indexed",
+                "Flatten Unindexed",
+                "Flatten Indexed"
+
+        };
+
+        try (PrintWriter out = new PrintWriter("benchmark_for_nyc_taxi.csv")) {
+
+            out.print("Test");
+
+            for (int i = 1; i <= runs; i++) {
+                out.print(",Run" + i);
+            }
+
+            out.println();
+
+            for (int t = 0; t < names.length; t++) {
+
+                out.print(names[t]);
+
+                for (int r = 0; r < runs; r++) {
+                    out.print("," + results[t][r]);
+                }
+
+                out.println();
+            }
+        }
+    }
+
+
+    public static long testQueryInGeoParquet(SparkSession spark, String path) throws Exception {
 
         Dataset<Row> table2 = spark.read()
                 .parquet(path)
@@ -46,7 +140,7 @@ public class nyctaxi {
 
         table2.createOrReplaceTempView("table");
 
-        double t1 = System.currentTimeMillis();
+        long t1 = System.currentTimeMillis();
 
         spark.sql("""
                     SELECT COUNT(*)
@@ -56,117 +150,119 @@ public class nyctaxi {
                     OR
                     (ST_Y(geom) < 40.7 OR ST_Y(geom) > 40.88)
                 """).show(false);
+        long duration=System.currentTimeMillis()-t1;
 
-        System.out.println("Querying from geoparquet file time = " + (System.currentTimeMillis() - t1));
+        System.out.println("Querying from geoparquet file time = " + duration);
+
+        return duration;
     }
-    public static void testSpeedBboxIndexing(SparkSession spark) throws Exception {
+    private static long testQuery(
+            SparkSession spark,
+            TableSpec table,
+            boolean flatten,
+            boolean indexed) throws IOException {
+
+        String xExpr = flatten
+                ? "geometry.x[0]"
+                : "geometry.parts[0].coordinates[0].x";
+
+        String yExpr = flatten
+                ? "geometry.y[0]"
+                : "geometry.parts[0].coordinates[0].y";
+
+        String bboxFilter = indexed
+                ? """
+              AND NOT (
+                  geometry.bbox_partitioning.max_x < -73.90 AND
+                  geometry.bbox_partitioning.min_x > -74.02 AND
+                  geometry.bbox_partitioning.max_y < 40.88 AND
+                  geometry.bbox_partitioning.min_y > 40.70
+              )
+              """
+                : "";
+
+        String sql = """
+        SELECT COUNT(*) AS number
+        FROM %s
+        WHERE
+        (
+            %s < -74.02 OR
+            %s > -73.90 OR
+            %s < 40.70 OR
+            %s > 40.88
+        )
+        %s
+        """.formatted(
+                table.database() + "." + table.table(),
+                xExpr,
+                xExpr,
+                yExpr,
+                yExpr,
+                bboxFilter
+        );
 
         long t1 = System.currentTimeMillis();
-        spark.sql("""
-                SELECT
-                    COUNT(*) AS number
-                FROM silverlayer.nyc_taxi
-                WHERE
-                      (
-                      geometry.parts[0].coordinates[0].x < -74.02 OR
-                      geometry.parts[0].coordinates[0].x > -73.90 OR
-                      geometry.parts[0].coordinates[0].y < 40.70 OR
-                      geometry.parts[0].coordinates[0].y > 40.88
-                      )
-                AND Not
-                      (
-                      geometry.bbox_partitioning.max_x < -73.90 AND
-                      geometry.bbox_partitioning.min_x > -74.02 AND
-                      geometry.bbox_partitioning.max_y < 40.88 AND
-                      geometry.bbox_partitioning.min_y > 40.70
-                      )
-                """).show(false);
+
+        spark.sql(sql).show(false);
 
         long duration = System.currentTimeMillis() - t1;
 
         System.out.println("Querying from iceberg table time " + duration);
 
-        System.out.println("Press ENTER to exit...");
-        System.in.read();
-
+        return duration;
     }
 
-    public static void testConvertionToGeometryForSpatialLakehouse(SparkSession spark, TableSpec silver) throws Exception {
 
-        String fullName = silver.database() + "." + silver.table();
+    public static long testDecodeForGeoparquet(SparkSession spark, String path) throws Exception {
 
-        Dataset<Row> t1 = spark.read()
-             .format("iceberg")
-             .load(fullName)
-             .withColumn("geom", callUDF("decodeGeometry", col("geometry")));
-
+        Dataset<Row> t = spark.read()
+             .parquet(path)
+             .withColumn("geom", expr("ST_GeomFromWKB(geometry)"));
 
         long start = System.currentTimeMillis();
 
-        t1.selectExpr("ST_X(geom) as x")
-                .agg(expr("sum(x)"))
+        t.selectExpr(
+                        "ST_X(geom) - ST_Y(geom) as diff"
+                )
+                .agg(expr("sum(diff)"))
                 .show();
+        long duration = System.currentTimeMillis() - start;
 
-        System.out.println("Iceberg"+fullName+" decode time = " + (System.currentTimeMillis() - start));
+        System.out.println("geoparquet decode time = " + duration);
+
+        return duration;
 
     }
 
-    public static void testConvertionToGeometryForGeoparquet(SparkSession spark, String path) throws Exception {
-        Dataset<Row> t2 = spark.read()
-                .parquet(path)
-                .withColumn("geom", expr("ST_GeomFromWKB(geometry)"));
+    public static long testDecode(SparkSession spark, TableSpec table, UDFRegistry udfregistry) throws Exception {
+
+        String fullName= table.database() + "." + table.table();
+
+        udfregistry.registerDecode(spark);
+
+        Dataset<Row> t = spark.read()
+                .format("iceberg")
+                .load(fullName).withColumn(
+                        "geom",
+                        expr("decodeGeometry(geometry)")
+                );
 
         long start = System.currentTimeMillis();
 
-        t2.selectExpr("ST_X(geom) as x")
-                .agg(expr("sum(x)"))
+        t.selectExpr(
+                        "ST_X(geom) - ST_Y(geom) as diff"
+                )
+                .agg(expr("sum(diff)"))
                 .show();
+
+        long duration = System.currentTimeMillis() - start;
 
         System.out.println(
-                "GeoParquet decode time = "
-                        + (System.currentTimeMillis() - start));
+                fullName+ " decode time = "
+                        + duration);
 
+        return duration;
     }
 }
-
-
-
-/*
-  SELECT
-                    COUNT(*) AS number
-                FROM silverlayer.nyc_taxi
-                WHERE
-                (
-
-                    (
-                    geometry.parts[0].coordinates[0].x < -74.02 OR
-                    geometry.parts[0].coordinates[0].x > -73.90 OR
-                    geometry.parts[0].coordinates[0].y < 40.70 OR
-                    geometry.parts[0].coordinates[0].y > 40.88
-                    )
-                   AND Not
-                    (
-                    geometry.bbox_partitioning.max_x < -73.90 AND
-                    geometry.bbox_partitioning.min_x > -74.02 AND
-                    geometry.bbox_partitioning.max_y < 40.88 AND
-                    geometry.bbox_partitioning.min_y > 40.70
-                    )
-                )
-                OR
-                (
-                    (
-                    geometry.bbox_partitioning.max_x < -74.02
-                    OR
-                    geometry.bbox_partitioning.min_x > -73.90
-                    )
-                    AND
-                    (
-                    geometry.bbox_partitioning.max_y < 40.70
-                    OR
-                    geometry.bbox_partitioning.min_y > 40.88
-                    )
-                )
- */
-
 
 

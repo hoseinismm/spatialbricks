@@ -219,6 +219,10 @@ public class FlattenSpatialParquetDecoder {
 
     private static double[] toDoubleArray(List<Double> list) {
 
+        if (list == null || list.isEmpty()) {
+            return new double[0];
+        }
+
         double[] arr = new double[list.size()];
 
         for (int i = 0; i < arr.length; i++) {
@@ -229,6 +233,10 @@ public class FlattenSpatialParquetDecoder {
     }
 
     private static int[] toIntArray(List<Integer> list) {
+
+        if (list == null || list.isEmpty()) {
+            return new int[0];
+        }
 
         int[] arr = new int[list.size()];
 

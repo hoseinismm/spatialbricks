@@ -4,6 +4,7 @@ import ir.smh.spatialbricks.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.decoder.FlattenSpatialParquetDecoder;
 import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
 import ir.smh.spatialbricks.encoder.GeometryReader;
+import ir.smh.spatialbricks.encoder.GeometryResult;
 import ir.smh.spatialbricks.encoder.udf.converttogeometry.*;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -187,6 +188,25 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
                 GeometryUDT$.MODULE$
         );
     }
+
+    public void registerAddGeohash(SparkSession spark) {
+
+        spark.udf().register(
+                "addgeohash",
+                (Row geoRow) -> {
+                    List<Double> x = geoRow.getList(geoRow.fieldIndex("x"));
+                    List<Double> y = geoRow.getList(geoRow.fieldIndex("y"));
+
+                    return GeometryResult.computeGeoHash(
+                            x.get(0),
+                            y.get(0)
+                    );
+                },
+                DataTypes.StringType   // اگر خروجی Geohash رشته است
+        );
+    }
+
+
 
     // =========================================================
     // CORE LOGIC (shared)
