@@ -1,6 +1,7 @@
 package ir.smh.spatialbricks.test_queries;
 
-import ir.smh.spatialbricks.TableSpec;
+import ir.smh.spatialbricks.utilities.PowerPlanUtil;
+import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
@@ -21,30 +22,41 @@ public class internatandvoicecoverage {
 
     public static void main(String[] args) throws Exception {
 
-        final int runs = 10;
+        PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
 
-        SparkSession spark = createSpark();
+        try {
+
+            final int runs = 10;
+
+            SparkSession spark = createSpark();
+
+            try {
 
         String path = "../datasets/internet_and_voice_coverage/binaryformat/internet_and_voice_coverage/output_geoparquet/";
 
-        TableSpec silverIndexed = new TableSpec("silverIndexed", "internet_and_voice_coverage", "");
         TableSpec silverUnindexed = new TableSpec("silverUnindexed", "internet_and_voice_coverage", "");
+        TableSpec silverIndexed = new TableSpec("silverIndexed", "internet_and_voice_coverage", "");
+        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "internet_and_voice_coverage", "");
         TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "internet_and_voice_coverage", "");
-        TableSpec flattenSilverUnindexed = new TableSpec("FlattenSilverUnindexed", "internet_and_voice_coverage", "");
 
         long[][] results = runBenchmarks(
                 spark,
                 runs,
                 path,
-                silverIndexed,
                 silverUnindexed,
-                flattenSilverIndexed,
-                flattenSilverUnindexed
+                silverIndexed,
+                flattenSilverUnindexed,
+                flattenSilverIndexed
         );
 
         writeResults(results, runs);
+            }   finally {
+                spark.stop();
+            }
 
-        spark.stop();
+        } finally {
+            PowerPlanUtil.setPowerPlan(PowerPlanUtil.BALANCED);
+        }
     }
 
     private static SparkSession createSpark() {
@@ -62,10 +74,11 @@ public class internatandvoicecoverage {
             SparkSession spark,
             int runs,
             String path,
-            TableSpec silverIndexed,
             TableSpec silverUnindexed,
-            TableSpec flattenSilverIndexed,
-            TableSpec flattenSilverUnindexed) throws Exception {
+            TableSpec silverIndexed,
+            TableSpec flattenSilverUnindexed,
+            TableSpec flattenSilverIndexed
+            ) throws Exception {
 
         long[][] results = new long[10][runs];
 

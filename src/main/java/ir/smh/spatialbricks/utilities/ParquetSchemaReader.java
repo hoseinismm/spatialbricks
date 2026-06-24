@@ -1,7 +1,7 @@
 package ir.smh.spatialbricks.utilities;
 
 
-import ir.smh.spatialbricks.TableSpec;
+import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.encoder.GeometryResult;
 import org.apache.hadoop.conf.Configuration;

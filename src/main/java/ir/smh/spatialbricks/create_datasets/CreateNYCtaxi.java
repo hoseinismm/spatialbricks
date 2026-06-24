@@ -1,22 +1,15 @@
 package ir.smh.spatialbricks.create_datasets;
 
-import ir.smh.spatialbricks.AddOrUpdateBboxIndex;
-import ir.smh.spatialbricks.SpatialWriting;
-import ir.smh.spatialbricks.TableSpec;
-import ir.smh.spatialbricks.config.SparkConfig;
+import ir.smh.spatialbricks.utilities.PowerPlanUtil;
+import ir.smh.spatialbricks.core.SpatialWriting;
+import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
-import ir.smh.spatialbricks.createsql.IcebergTableCreator;
 import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
 import org.apache.sedona.spark.SedonaContext;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
-import static org.apache.spark.sql.functions.*;
 
 import java.io.IOException;
-
-import static org.apache.spark.sql.functions.expr;
 
 
 public class CreateNYCtaxi {
@@ -24,8 +17,12 @@ public class CreateNYCtaxi {
     SpatialWriting spatialWriting;
 
     public static void main(String[] args) throws NoSuchTableException, IOException, InterruptedException {
+        PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
 
-        var spark = SparkConfigLocal.createSession("../datasets/nyc_taxi");
+        try {
+
+            var spark = SparkConfigLocal.createSession("../datasets/nyc_taxi");
+            try {
 
         spark.sparkContext().setLogLevel("ERROR");
 
@@ -38,7 +35,7 @@ public class CreateNYCtaxi {
         TableSpec silverIndexed = new TableSpec("silverIndexed", "nyc_taxi", "");
         TableSpec silverUnindexed = new TableSpec("silverUnindexed", "nyc_taxi", "");
         TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "nyc_taxi", "");
-        TableSpec flattenSilverUnindexed = new TableSpec("FlattenSilverUnindexed", "nyc_taxi","");
+        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "nyc_taxi","");
         TableSpec Sorted = new TableSpec("Sorted", "nyc_taxi","");
 
         String path =   "../datasets/nyc_taxi/yellow_tripdata_2009-0*.parquet";
@@ -66,14 +63,14 @@ public class CreateNYCtaxi {
 //        flattenspatialwriting.customWriter(flattenSilverIndexed,
 //                path,150000L, 131072L, "End_Lon","End_Lat"
 //        );
+
+        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
+                path, "Start_Lon","Start_Lat"
+        );
 //
-//        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
-//                path, "Start_Lon","Start_Lat"
-//        );
-//
-//        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
-//                path, "End_Lon","End_Lat"
-//        );
+        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
+                path, "End_Lon","End_Lat"
+        );
 
 //        FlattenSpatialParquet flattenSpatialParquet = new FlattenSpatialParquet();
 //        flattenSpatialParquet.registerAddGeohash(spark);
@@ -94,8 +91,20 @@ public class CreateNYCtaxi {
 //        System.out.println("Press ENTER to exit...");
 //        System.in.read();
 
-        spark.stop();
+                long duration = System.currentTimeMillis() - startTime;
+
+                System.out.println("Time of writing : " + duration);
+
+            } finally {
+                spark.stop();
+            }
+
+        } finally {
+            PowerPlanUtil.setPowerPlan(PowerPlanUtil.BALANCED);
+        }
+
         Thread.sleep(3000);
     }
 }
+
 

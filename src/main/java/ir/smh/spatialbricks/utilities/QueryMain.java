@@ -1,9 +1,11 @@
 package ir.smh.spatialbricks.utilities;
 
 
-import ir.smh.spatialbricks.BucketServiceForBboxIndexing;
-import ir.smh.spatialbricks.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
+import ir.smh.spatialbricks.config.SparkConfigLocal;
+import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
+import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
+import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
@@ -11,30 +13,30 @@ import org.apache.spark.sql.catalyst.parser.ParseException;
 
 import java.io.IOException;
 
-
-
-
-
 public class QueryMain {
     public static void main(String[] args) throws IOException, NoSuchTableException, ParseException {
 
-
-
-
-
-
-        var spark = SparkConfig.createSession("../datasets/newyork");
+        var spark = SparkConfigLocal.createSession("../datasets/internet_&_voice_coverage");
         spark.sparkContext().setLogLevel("ERROR");
-
-
-
-        TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
-
-        BucketServiceForBboxIndexing a= new BucketServiceForBboxIndexing(spark);
-        a.updateBucket(silver);
-
         SedonaContext.create(spark);
+        UDFRegistry udfRegistry=new FlattenSpatialParquet();
+        udfRegistry.registerDecode(spark);
         SedonaSQLRegistrator.registerAll(spark);
+        spark.sql("""
+                SELECT
+                sum(ST_Area(
+                               decodeGeometry(geometry)
+                           ))
+        FROM flattensilverUnindexed.internet_and_voice_coverage
+        """).show(false);
+
+//
+//        TableSpec silver = new TableSpec("silverlayer", "FireStations", "");
+//
+//        BucketServiceForBboxIndexing a= new BucketServiceForBboxIndexing(spark);
+//        a.updateBucket(silver);
+//
+
 
 
         /*
@@ -64,26 +66,26 @@ public class QueryMain {
         System.out.println("⏳ Press ENTER to stop the program...");
 
          */
-
-        spark.sql("""
-    SELECT
-        geometry.bbox_partitioning.min_x AS min_x,
-        geometry.bbox_partitioning.max_x AS max_x,
-        geometry.bbox_partitioning.min_y AS min_y,
-        geometry.bbox_partitioning.max_y AS max_y,
-        geometry.bbox_partitioning.region_code AS code,
-        
-        COUNT(*) AS cnt
-    FROM silverlayer.FireStations
-    GROUP BY
-        geometry.bbox_partitioning.min_x,
-        geometry.bbox_partitioning.max_x,
-        geometry.bbox_partitioning.min_y,
-        geometry.bbox_partitioning.max_y,
-        geometry.bbox_partitioning.region_code
-        
-    ORDER BY cnt DESC
-""").show(false);
+//
+//        spark.sql("""
+//    SELECT
+//        geometry.bbox_partitioning.min_x AS min_x,
+//        geometry.bbox_partitioning.max_x AS max_x,
+//        geometry.bbox_partitioning.min_y AS min_y,
+//        geometry.bbox_partitioning.max_y AS max_y,
+//        geometry.bbox_partitioning.region_code AS code,
+//
+//        COUNT(*) AS cnt
+//    FROM silverlayer.FireStations
+//    GROUP BY
+//        geometry.bbox_partitioning.min_x,
+//        geometry.bbox_partitioning.max_x,
+//        geometry.bbox_partitioning.min_y,
+//        geometry.bbox_partitioning.max_y,
+//        geometry.bbox_partitioning.region_code
+//
+//    ORDER BY cnt DESC
+//""").show(false);
 
 
          /*
@@ -222,10 +224,10 @@ for (var manifest : snapshot.allManifests(table.io())) {
     }
 }
 
-         */
-System.in.read();
-
-
+//         */
+//System.in.read();
+//
+//
 spark.stop();
 
 

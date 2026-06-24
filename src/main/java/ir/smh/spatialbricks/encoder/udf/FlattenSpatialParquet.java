@@ -1,11 +1,13 @@
 package ir.smh.spatialbricks.encoder.udf;
 
-import ir.smh.spatialbricks.BucketManagerForBboxIndexing;
+import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.decoder.FlattenSpatialParquetDecoder;
-import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
-import ir.smh.spatialbricks.encoder.GeometryReader;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.encoder.GeometryResult;
-import ir.smh.spatialbricks.encoder.udf.converttogeometry.*;
+import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.WKTReaderAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -20,7 +22,6 @@ import org.apache.spark.sql.types.StructType;
 import org.locationtech.jts.geom.Geometry;
 
 import java.io.Serializable;
-
 import java.util.List;
 import java.util.Map;
 
@@ -84,17 +85,14 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
                 } else if (input instanceof String && adapter instanceof WKTReaderAdapter) {
                     geometry = ((WKTReaderAdapter) adapter).inputToGeometry((String) input);
 
-                } else if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter) {
-                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
-
-                } else if (input instanceof String && adapter instanceof geoJsonReaderAdapter) {
-                    geometry = ((geoJsonReaderAdapter) adapter).inputToGeometry((String) input);
+                } else  if (input instanceof Row && adapter instanceof geoJsonGeometricalAdapter) {
+                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Row) input);
 
                 } else {
                     throw new IllegalArgumentException("Unsupported input: " + input.getClass());
                 }
 
-                Map<String, Object> geom = ParseGeometry3.parseGeometry(geometry);
+                Map<String, Object> geom = ParseGeometryForFlatten.parseGeometry(geometry);
 
                 return new GenericRowWithSchema(new Object[]{
                         geom.get("type"),

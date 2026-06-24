@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks.encoder;
+package ir.smh.spatialbricks.encoder.converttogeometry;
 
 import org.locationtech.jts.geom.Geometry;
 

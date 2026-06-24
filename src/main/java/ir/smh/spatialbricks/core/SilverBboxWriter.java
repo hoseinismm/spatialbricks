@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.core;
 
 import ir.smh.spatialbricks.createsql.IcebergTableCreatorWithPartitioning;
 import org.apache.spark.sql.Dataset;

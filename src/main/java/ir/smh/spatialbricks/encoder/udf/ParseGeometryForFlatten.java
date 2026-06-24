@@ -4,7 +4,7 @@ import org.locationtech.jts.geom.*;
 
 import java.util.*;
 
-public class ParseGeometry3 {
+public class ParseGeometryForFlatten {
 
     public static Map<String, Object> parseGeometry(Geometry geometry) {
 

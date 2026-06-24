@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.core;
 
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;

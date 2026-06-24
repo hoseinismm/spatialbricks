@@ -1,6 +1,5 @@
-package ir.smh.spatialbricks.encoder.udf.converttogeometry;
+package ir.smh.spatialbricks.encoder.converttogeometry;
 
-import ir.smh.spatialbricks.encoder.GeometryReader;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKBReader;
 

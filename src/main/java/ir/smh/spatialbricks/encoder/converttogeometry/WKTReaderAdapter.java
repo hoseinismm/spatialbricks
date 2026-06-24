@@ -1,6 +1,5 @@
-package ir.smh.spatialbricks.encoder.udf.converttogeometry;
+package ir.smh.spatialbricks.encoder.converttogeometry;
 
-import ir.smh.spatialbricks.encoder.GeometryReader;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
@@ -16,5 +15,4 @@ public class WKTReaderAdapter implements GeometryReader<String>, Serializable {
         WKTReader reader = new WKTReader(geometryFactory);
         return reader.read(wkt);
     }
-
 }

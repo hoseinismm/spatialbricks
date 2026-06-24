@@ -1,25 +1,28 @@
 package ir.smh.spatialbricks.create_datasets;
 
-import ir.smh.spatialbricks.SpatialWriting;
-import ir.smh.spatialbricks.TableSpec;
-import ir.smh.spatialbricks.config.SparkConfig;
+import ir.smh.spatialbricks.utilities.PowerPlanUtil;
+import ir.smh.spatialbricks.core.SpatialWriting;
+import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
-import ir.smh.spatialbricks.encoder.GeometryReader;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
-import ir.smh.spatialbricks.encoder.udf.converttogeometry.WKBReaderAdapter;
-import ir.smh.spatialbricks.encoder.udf.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
 import java.io.IOException;
 
 
-public class CreatePortoTaxi {
+public class CreatePortoTaxiFromChuncedParquetFiles {
 
     public static void main(String[] args) throws NoSuchTableException, IOException, InterruptedException {
+        PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
+
+        try {
 
         var spark = SparkConfigLocal.createSession("../datasets/portotaxi");
+            try {
 
         spark.sparkContext().setLogLevel("ERROR");
 
@@ -50,14 +53,18 @@ public class CreatePortoTaxi {
 //          flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path );//
 //          flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed,path, 150000L, 131072L);
         }
+        long duration = System.currentTimeMillis() - start;
 
-        System.out.println("Process time" +
-                " for writing = " + (System.currentTimeMillis() - start));
+        System.out.println("Time of writing :  = " +duration);
 
-        System.out.println("Press ENTER to exit...");
-        System.in.read();
+            } finally {
+                spark.stop();
+            }
 
-        spark.stop();
+        } finally {
+            PowerPlanUtil.setPowerPlan(PowerPlanUtil.BALANCED);
+        }
+
         Thread.sleep(3000);
     }
 }

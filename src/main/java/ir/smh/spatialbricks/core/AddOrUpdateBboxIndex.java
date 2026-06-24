@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.core;
 
 
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;

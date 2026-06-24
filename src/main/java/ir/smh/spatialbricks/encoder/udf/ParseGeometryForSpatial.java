@@ -1,17 +1,11 @@
 package ir.smh.spatialbricks.encoder.udf;
 
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructType;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.*;
 import java.util.*;
 
-import static org.apache.spark.sql.functions.*;
-import static org.apache.spark.sql.functions.lit;
 
-public class ParseGeometry {
+public class ParseGeometryForSpatial {
 
     private static Map<String, Double> coordToMap(Coordinate c) {
         Map<String, Double> map = new HashMap<>();

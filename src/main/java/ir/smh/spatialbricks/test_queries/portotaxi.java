@@ -1,6 +1,7 @@
 package ir.smh.spatialbricks.test_queries;
 
-import ir.smh.spatialbricks.TableSpec;
+import ir.smh.spatialbricks.utilities.PowerPlanUtil;
+import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
@@ -21,36 +22,49 @@ public class portotaxi {
 
     public static void main(String[] args) throws Exception {
 
-        final int runs = 20;
+        PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
 
-        SparkSession spark = createSpark();
+        try {
+
+            final int runs = 10;
+
+            SparkSession spark = createSpark();
+
+            try {
 
         String path = "../datasets/portotaxi/porto_taxi_chunk_*.parquet";
 
-        TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", "");
         TableSpec silverUnindexed = new TableSpec("silverUnindexed", "portotaxi", "");
+        TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", "");
+        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "portotaxi", "");
         TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "portotaxi", "");
-        TableSpec flattenSilverUnindexed = new TableSpec("FlattenSilverUnindexed", "portotaxi", "");
+
 
         long[][] results = runBenchmarks(
                 spark,
                 runs,
                 path,
-                silverIndexed,
                 silverUnindexed,
-                flattenSilverIndexed,
-                flattenSilverUnindexed
+                silverIndexed,
+                flattenSilverUnindexed,
+                flattenSilverIndexed
+
         );
 
         writeResults(results, runs);
 
-        spark.stop();
+            }   finally {
+                spark.stop();
+            }
+
+        } finally {
+            PowerPlanUtil.setPowerPlan(PowerPlanUtil.BALANCED);
+        }
     }
 
     private static SparkSession createSpark() {
 
-        SparkSession spark =
-                SparkConfig.createSession("../datasets/portotaxi");
+        SparkSession spark = SparkConfig.createSession("../datasets/portotaxi");
 
         SedonaContext.create(spark);
         SedonaSQLRegistrator.registerAll(spark);
@@ -62,10 +76,11 @@ public class portotaxi {
             SparkSession spark,
             int runs,
             String path,
-            TableSpec silverIndexed,
             TableSpec silverUnindexed,
-            TableSpec flattenSilverIndexed,
-            TableSpec flattenSilverUnindexed) throws Exception {
+            TableSpec silverIndexed,
+            TableSpec flattenSilverUnindexed,
+            TableSpec flattenSilverIndexed
+            ) throws Exception {
 
         long[][] results = new long[10][runs];
 
@@ -76,21 +91,13 @@ public class portotaxi {
             results[0][i] = testSpeedGeoParquet(spark, path);
             results[1][i] = testSpeedBboxIndexed(spark, silverIndexed);
             results[2][i] = testSpeedBboxUnindexed(spark, silverUnindexed);
-            results[3][i] = testSpeedFlattenBboxUnindexed(spark, flattenSilverUnindexed);
-            results[4][i] = testSpeedFlattenBboxIndexed(spark, flattenSilverIndexed);
-
-            results[5][i] = testConvertionToGeometryForSpatialParquet(spark, silverIndexed);
+            results[3][i] = testSpeedFlattenBboxIndexed(spark, flattenSilverIndexed);
+            results[4][i] = testSpeedFlattenBboxUnindexed(spark, flattenSilverUnindexed);
+            results[5][i] = testConvertionToGeometryForGeoparquet(spark, path);
             results[6][i] = testConvertionToGeometryForSpatialParquet(spark, silverUnindexed);
-
-            results[7][i] = testConvertionToGeometryForFlattenSpatialParquet(
-                    spark,
-                    flattenSilverIndexed);
-
-            results[8][i] = testConvertionToGeometryForFlattenSpatialParquet(
-                    spark,
-                    flattenSilverUnindexed);
-
-            results[9][i] = testConvertionToGeometryForGeoparquet(spark, path);
+            results[7][i] = testConvertionToGeometryForSpatialParquet(spark, silverIndexed);
+            results[8][i] = testConvertionToGeometryForFlattenSpatialParquet(spark,flattenSilverUnindexed);
+            results[9][i] = testConvertionToGeometryForFlattenSpatialParquet(spark,flattenSilverIndexed);
         }
 
         return results;
@@ -101,15 +108,15 @@ public class portotaxi {
 
         String[] names = {
                 "GeoParquet",
-                "BBox Indexed",
-                "BBox Unindexed",
-                "Flatten BBox Unindexed",
-                "Flatten BBox Indexed",
-                "Convert Spatial Indexed",
-                "Convert Spatial Unindexed",
-                "Convert Flatten Indexed",
-                "Convert Flatten Unindexed",
-                "Convert GeoParquet"
+                "Spatial Unindexed",
+                "Spatial Indexed",
+                "Flatten Unindexed",
+                "Flatten Indexed",
+                "GeoParquet",
+                "Spatial Unindexed",
+                "Spatial Indexed",
+                "Flatten Unindexed",
+                "Flatten Indexed"
         };
 
         try (PrintWriter out = new PrintWriter("benchmark.csv")) {

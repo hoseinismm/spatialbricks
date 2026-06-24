@@ -1,13 +1,15 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.core;
 
 import ir.smh.spatialbricks.createsql.IcebergTableCreator;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.types.StructType;
+import static org.apache.spark.sql.functions.col;
 
 import org.apache.spark.sql.SparkSession;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 import static org.apache.spark.sql.functions.expr;
@@ -20,12 +22,13 @@ public class BronzeWriter {
         this.spark = spark;
     }
 
-    void writeBronze(TableSpec bronze, Dataset<Row> df) throws NoSuchTableException {
+    void writeBronze(TableSpec bronze, Dataset<Row> df) throws NoSuchTableException, IOException {
 
         Dataset<Row> output = df;
 
+
         if (Arrays.asList(df.columns()).contains("geometry")) {
-            output = df.withColumn("geometry", expr("ST_AsGeoJSON(geometry)"));
+            output = df.withColumn("geometry", expr("to_json(geometry)"));
         }
 
         createOrAppend(
@@ -35,16 +38,20 @@ public class BronzeWriter {
         );
     }
 
-    void writeBronzeBinary(TableSpec bronze, Dataset<Row> df) throws NoSuchTableException {
+    void writeBronzeBinary(TableSpec bronze, Dataset<Row> df) throws NoSuchTableException, IOException {
 
-        Dataset<Row> output = df;
 
         if (Arrays.asList(df.columns()).contains("geometry")) {
-            output = df.withColumn("geometry", expr("ST_AsBinary(geometry)"));
+            df = df.withColumn(
+                    "geometry",
+                    expr(
+                            "ST_AsBinary(ST_GeomFromGeoJSON(to_json(geometry)))"
+                    )
+            );
         }
 
         createOrAppend(
-                output,
+                df,
                 bronze.database(),
                 bronze.table()
         );

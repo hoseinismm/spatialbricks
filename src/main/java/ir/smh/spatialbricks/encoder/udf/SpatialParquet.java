@@ -1,7 +1,10 @@
 package ir.smh.spatialbricks.encoder.udf;
 
-import ir.smh.spatialbricks.BucketManagerForBboxIndexing;
+import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
+import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.WKTReaderAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.api.java.UDF1;
@@ -13,8 +16,7 @@ import org.locationtech.jts.geom.Geometry;
 import java.io.Serializable;
 import java.util.*;
 
-import ir.smh.spatialbricks.encoder.GeometryReader;
-import ir.smh.spatialbricks.encoder.udf.converttogeometry.*;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 
 import static org.apache.spark.sql.functions.*;
 
@@ -78,16 +80,13 @@ public class SpatialParquet implements UDFRegistry, Serializable {
                 } else if (input instanceof String && adapter instanceof WKTReaderAdapter) {
                     geometry = ((WKTReaderAdapter) adapter).inputToGeometry((String) input);
 
-                } else if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter) {
-                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
-
-                } else if (input instanceof String && adapter instanceof geoJsonReaderAdapter) {
-                    geometry = ((geoJsonReaderAdapter) adapter).inputToGeometry((String) input);
+                } else  if (input instanceof Row && adapter instanceof geoJsonGeometricalAdapter) {
+                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Row) input);
 
                 } else {
                     throw new IllegalArgumentException("Unsupported input: " + input.getClass());
                 }
-                Map<String, Object> geom = ParseGeometry.parseGeometry(geometry);
+                Map<String, Object> geom = ParseGeometryForSpatial.parseGeometry(geometry);
 
                 int type = (int) geom.get("type");
                 @SuppressWarnings("unchecked")

@@ -1,9 +1,9 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.core;
 
-import ir.smh.spatialbricks.encoder.GeometryReader;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
-import ir.smh.spatialbricks.encoder.udf.converttogeometry.WKBReaderAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
 import org.apache.spark.sql.Row;
 
 import org.apache.spark.api.java.JavaSparkContext;
@@ -54,9 +54,9 @@ public class SpatialWriting implements Serializable {
     public void bronzeLayer(TableSpec bronze, String inputPath)
             throws NoSuchTableException, IOException {
 
-        JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
-        Dataset<Row> df = inputReader.read(inputPath, jsc);
+
+        Dataset<Row> df = inputReader.read(inputPath);
 
         df = checkGeometryColumnName(df);
 
@@ -68,7 +68,7 @@ public class SpatialWriting implements Serializable {
 
         JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
-        Dataset<Row> df = inputReader.read(inputPath, jsc);
+        Dataset<Row> df = inputReader.read(inputPath);
 
         df = checkGeometryColumnName(df);
 
@@ -78,14 +78,16 @@ public class SpatialWriting implements Serializable {
     public void silverLayerWithoutBboxIndexing(
             TableSpec silver,
             String inputPath
-            )   throws NoSuchTableException {
+            ) throws NoSuchTableException, IOException {
 
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(
                         spark.sparkContext());
 
         Dataset<Row> df =
-                inputReader.read(inputPath, jsc);
+                inputReader.read(inputPath);
+//        df.printSchema();
+//        System.in.read();
 
         silverLayerWithoutBboxIndexing(
                 silver,
@@ -120,7 +122,7 @@ public class SpatialWriting implements Serializable {
                         spark.sparkContext());
 
         Dataset<Row> df =
-                inputReader.read(inputPath, jsc);
+                inputReader.read(inputPath);
 
         silverLayerWithBboxIndexing(
                 silver,
@@ -212,7 +214,7 @@ public class SpatialWriting implements Serializable {
                         spark.sparkContext());
 
         Dataset<Row> df =
-                inputReader.read(inputPath, jsc);
+                inputReader.read(inputPath);
 
         Dataset<Row> transformed = udfRegistry.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
 

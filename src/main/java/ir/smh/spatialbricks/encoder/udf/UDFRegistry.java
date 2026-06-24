@@ -1,7 +1,7 @@
 package ir.smh.spatialbricks.encoder.udf;
 
-import ir.smh.spatialbricks.BucketManagerForBboxIndexing;
-import ir.smh.spatialbricks.encoder.GeometryReader;
+import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
