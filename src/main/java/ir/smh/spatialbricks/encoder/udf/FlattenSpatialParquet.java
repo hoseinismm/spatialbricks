@@ -2,11 +2,8 @@ package ir.smh.spatialbricks.encoder.udf;
 
 import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.decoder.FlattenSpatialParquetDecoder;
-import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
+import ir.smh.spatialbricks.encoder.converttogeometry.*;
 import ir.smh.spatialbricks.encoder.GeometryResult;
-import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
-import ir.smh.spatialbricks.encoder.converttogeometry.WKTReaderAdapter;
-import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
 
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -16,6 +13,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.api.java.UDF1;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.sedona_sql.UDT.GeometryUDT$;
+import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -30,7 +28,7 @@ import static org.apache.spark.sql.functions.lit;
 
 public class FlattenSpatialParquet implements UDFRegistry, Serializable {
 
-    public void FlattenSpatialUdfs() {
+    public FlattenSpatialParquet() {
     }
 
     // =========================================================
@@ -54,7 +52,7 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
                     DataTypes.createStructField("region_code", DataTypes.LongType, true)
             });
 
-    private static final StructType GEOMETRY_SCHEMA =
+    private  static StructType GEOMETRY_TYPE =
             DataTypes.createStructType(new StructField[]{
                     DataTypes.createStructField("type", DataTypes.IntegerType, false),
                     DataTypes.createStructField("x", DataTypes.createArrayType(DataTypes.DoubleType), false),
@@ -72,6 +70,10 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
     // =========================================================
     // 1) GEOMETRY ENCODER UDF
     // =========================================================
+
+    public DataType getGeometryType() {
+        return GEOMETRY_TYPE;
+    }
 
     public void registerGeometryUdf(SparkSession spark, GeometryReader adapter) {
 
@@ -92,19 +94,14 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
                 } else  if (input instanceof Row && adapter instanceof geoJsonGeometricalAdapter) {
                     geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Row) input);
 
+                } else  if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter2) {
+                    geometry = ((geoJsonGeometricalAdapter2) adapter).inputToGeometry((Geometry) input);
+
                 } else {
                     throw new IllegalArgumentException("Unsupported input: " + input.getClass());
                 }
 
-                Map<String, Object> geom = ParseGeometryForFlatten.parseGeometry(geometry);
-
-                return new GenericRowWithSchema(new Object[]{
-                        geom.get("type"),
-                        geom.get("x"),
-                        geom.get("y"),
-                        geom.get("parts"),
-                        null
-                }, GEOMETRY_SCHEMA);
+                return geometryToRow(geometry);
 
             } catch (Exception e) {
                 System.err.println("Geometry UDF error: " + e.getMessage());
@@ -112,7 +109,26 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
             }
         };
 
-        spark.udf().register("stringOrGeomToGeometry", udf, GEOMETRY_SCHEMA);
+        spark.udf().register("stringOrGeomToGeometry", udf, GEOMETRY_TYPE);
+    }
+
+    public Row geometryToRow(Geometry geometry) {
+
+        Map<String, Object> geom =
+                ParseGeometryForFlatten.parseGeometry(
+                        geometry
+                );
+
+        return new GenericRowWithSchema(
+                new Object[]{
+                        geom.get("type"),
+                        geom.get("x"),
+                        geom.get("y"),
+                        geom.get("parts"),
+                        null
+                },
+                GEOMETRY_TYPE
+        );
     }
 
     // =========================================================

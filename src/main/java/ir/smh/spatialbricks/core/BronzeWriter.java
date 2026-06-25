@@ -45,7 +45,7 @@ public class BronzeWriter {
             df = df.withColumn(
                     "geometry",
                     expr(
-                            "ST_AsBinary(ST_GeomFromGeoJSON(to_json(geometry)))"
+                            "ST_AsBinary(geometry)"
                     )
             );
         }

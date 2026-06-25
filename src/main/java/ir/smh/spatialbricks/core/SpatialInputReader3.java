@@ -2,7 +2,6 @@ package ir.smh.spatialbricks.core;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -16,16 +15,13 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.locationtech.jts.geom.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
 import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.geojson.GeoJsonReader;
 
 import java.io.Serializable;
 import java.util.*;
 
-public class SpatialInputReader2 implements Serializable {
+public class SpatialInputReader3 implements Serializable {
 
     private final SparkSession spark;
 
@@ -34,7 +30,7 @@ public class SpatialInputReader2 implements Serializable {
                     GeoJsonReader::new
             );
 
-    public SpatialInputReader2(SparkSession spark) {
+    public SpatialInputReader3(SparkSession spark) {
         this.spark = spark;
     }
 
@@ -120,13 +116,12 @@ public class SpatialInputReader2 implements Serializable {
     }
 
     private StructType addGeometryColumn(
-            StructType propertiesSchema,
-            DataType geometryType) {
+            StructType propertiesSchema) {
 
         StructType schema = new StructType()
                 .add(
                         "geometry",
-                        geometryType,
+                        GeometryUDT$.MODULE$,
                         true
                 );
 
@@ -196,8 +191,7 @@ public class SpatialInputReader2 implements Serializable {
 
     private JavaRDD<Row> buildRows(
             JavaRDD<String> lines,
-            StructType propertiesSchema,
-            UDFRegistry udfRegistry) {
+            StructType propertiesSchema) {
 
         return lines.map(line -> {
 
@@ -227,20 +221,7 @@ public class SpatialInputReader2 implements Serializable {
                                         geometryNode.toString()
                                 );
 
-                if (udfRegistry == null) {
-                    byte[] wkb =
-                            new WKBWriter().write(geometry);
-
-                    values.add(wkb);
-                } else {
-
-                    values.add(
-                            udfRegistry.geometryToRow(
-                                    geometry
-                            )
-
-                    );
-                }
+                values.add(geometry);
 
                 // properties
                 for (StructField field :
@@ -284,25 +265,12 @@ public class SpatialInputReader2 implements Serializable {
     }
 
     public Dataset<Row> read(String inputPath) throws Exception {
-        return read(
-                inputPath,
-                null
-        );
-    }
-
-    public Dataset<Row> read(String inputPath, UDFRegistry udfRegistry) throws Exception {
 
         String path = inputPath.toLowerCase();
 
         if (path.endsWith(".json") || path.endsWith(".geojson")) {
 
-            DataType geometryType;
 
-            if (udfRegistry == null) {
-                geometryType=DataTypes.BinaryType;
-            } else {
-                geometryType = udfRegistry.getGeometryType();
-            }
 
             StructType propertiesSchema =
                     inferPropertiesSchema(
@@ -311,8 +279,7 @@ public class SpatialInputReader2 implements Serializable {
 
             StructType finalSchema =
                     addGeometryColumn(
-                            propertiesSchema,
-                            geometryType
+                            propertiesSchema
                     );
 
             JavaRDD<String> lines =
@@ -323,8 +290,7 @@ public class SpatialInputReader2 implements Serializable {
             JavaRDD<Row> rows =
                     buildRows(
                             lines,
-                            propertiesSchema,
-                            udfRegistry
+                            propertiesSchema
                     );
 
             Dataset<Row> df =

@@ -16,19 +16,22 @@ import java.io.IOException;
 public class QueryMain {
     public static void main(String[] args) throws IOException, NoSuchTableException, ParseException {
 
-        var spark = SparkConfigLocal.createSession("../datasets/internet_&_voice_coverage");
+        var spark = SparkConfigLocal.createSession("../datasets/internet_and_voice_coverage2");
         spark.sparkContext().setLogLevel("ERROR");
         SedonaContext.create(spark);
         UDFRegistry udfRegistry=new FlattenSpatialParquet();
         udfRegistry.registerDecode(spark);
         SedonaSQLRegistrator.registerAll(spark);
         spark.sql("""
-                SELECT
-                sum(ST_Area(
-                               decodeGeometry(geometry)
-                           ))
+        
+                        SELECT
+                        sum(ST_Area(
+                                decodeGeometry(geometry)
+                        ))
+        
         FROM flattensilverUnindexed.internet_and_voice_coverage
         """).show(false);
+
 
 //
 //        TableSpec silver = new TableSpec("silverlayer", "FireStations", "");

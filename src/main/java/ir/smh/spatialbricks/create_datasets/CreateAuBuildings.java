@@ -75,6 +75,8 @@ public class CreateAuBuildings {
 
                 System.out.println("Time of writing : " + duration);
 
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             } finally {
                 spark.stop();
             }

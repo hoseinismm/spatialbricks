@@ -2,9 +2,7 @@ package ir.smh.spatialbricks.encoder.udf;
 
 import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
-import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
-import ir.smh.spatialbricks.encoder.converttogeometry.WKTReaderAdapter;
-import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.*;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.api.java.UDF1;
@@ -15,8 +13,6 @@ import org.locationtech.jts.geom.Geometry;
 
 import java.io.Serializable;
 import java.util.*;
-
-import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 
 import static org.apache.spark.sql.functions.*;
 
@@ -54,7 +50,7 @@ public class SpatialParquet implements UDFRegistry, Serializable {
                     DataTypes.createStructField("region_code", DataTypes.LongType, true)
             });
 
-    private static final StructType GEOMETRY_TYPE =
+    private static  final StructType GEOMETRY_TYPE =
             DataTypes.createStructType(new StructField[]{
                     DataTypes.createStructField("type", DataTypes.IntegerType, false),
                     DataTypes.createStructField("parts",
@@ -67,6 +63,9 @@ public class SpatialParquet implements UDFRegistry, Serializable {
     // =========================================================
     // 1) GEOMETRY ENCODER (FLAT PARTS STRUCTURE)
     // =========================================================
+    public DataType getGeometryType() {
+        return GEOMETRY_TYPE;
+    }
 
     public void registerGeometryUdf(SparkSession spark, GeometryReader adapter) {
 
@@ -87,32 +86,13 @@ public class SpatialParquet implements UDFRegistry, Serializable {
                 } else  if (input instanceof Row && adapter instanceof geoJsonGeometricalAdapter) {
                     geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Row) input);
 
+                } else  if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter2) {
+                    geometry = ((geoJsonGeometricalAdapter2) adapter).inputToGeometry((Geometry) input);
+
                 } else {
                     throw new IllegalArgumentException("Unsupported input: " + input.getClass());
                 }
-                Map<String, Object> geom = ParseGeometryForSpatial.parseGeometry(geometry);
-
-                int type = (int) geom.get("type");
-                @SuppressWarnings("unchecked")
-                List<List<Map<String, Double>>> partsList = (List<List<Map<String, Double>>>) geom.get("parts");
-
-                List<Row> partRows = new ArrayList<>();
-                for (List<Map<String, Double>> part : partsList) {
-                    List<Row> coordRows = new ArrayList<>();
-                    for (Map<String, Double> c : part) {
-                        double x = c.get("x");
-                        double y = c.get("y");
-                        coordRows.add(new GenericRowWithSchema(new Object[]{x, y}, COORD_TYPE));
-                    }
-                    partRows.add(new GenericRowWithSchema(new Object[]{coordRows}, PART_TYPE));
-                }
-
-                List<Object> values = new ArrayList<>();
-                values.add(type);            // 0: type
-                values.add(partRows);        // 1: parts
-                values.add(null);            // 2: bboxpartitioning
-
-                return new GenericRowWithSchema(values.toArray(), GEOMETRY_TYPE);
+                return geometryToRow(geometry);
 
             } catch (Exception e) {
                 System.err.println("Error parsing geometry: " + e.getMessage());
@@ -123,6 +103,57 @@ public class SpatialParquet implements UDFRegistry, Serializable {
         // ثبت UDF
         spark.udf().register("stringOrGeomToGeometry", udf, GEOMETRY_TYPE);
 
+    }
+
+    public Row geometryToRow(Geometry geometry) {
+
+        Map<String, Object> geom =
+                ParseGeometryForSpatial.parseGeometry(geometry);
+
+        int type =
+                (int) geom.get("type");
+
+        @SuppressWarnings("unchecked")
+        List<List<Map<String, Double>>> partsList =
+                (List<List<Map<String, Double>>>) geom.get("parts");
+
+        List<Row> partRows =
+                new ArrayList<>();
+
+        for (List<Map<String, Double>> part : partsList) {
+
+            List<Row> coordRows =
+                    new ArrayList<>();
+
+            for (Map<String, Double> c : part) {
+
+                coordRows.add(
+                        new GenericRowWithSchema(
+                                new Object[]{
+                                        c.get("x"),
+                                        c.get("y")
+                                },
+                                COORD_TYPE
+                        )
+                );
+            }
+
+            partRows.add(
+                    new GenericRowWithSchema(
+                            new Object[]{coordRows},
+                            PART_TYPE
+                    )
+            );
+        }
+
+        return new GenericRowWithSchema(
+                new Object[]{
+                        type,
+                        partRows,
+                        null
+                },
+                GEOMETRY_TYPE
+        );
     }
 
     // =========================================================

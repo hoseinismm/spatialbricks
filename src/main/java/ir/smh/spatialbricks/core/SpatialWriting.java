@@ -11,7 +11,6 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 
@@ -20,7 +19,7 @@ public class SpatialWriting implements Serializable {
 
     private final SparkSession spark;
     private final GeometryReader<?> adapter;
-    private final SpatialInputReader inputReader;
+    private final SpatialInputReader3 inputReader;
     private final BronzeWriter bronzeWriter;
     private final SilverBboxWriter silverBboxWriter;
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
@@ -30,7 +29,7 @@ public class SpatialWriting implements Serializable {
             (SparkSession spark, GeometryReader<?> adapter, UDFRegistry udfRegistry) {
         this.spark = spark;
         this.adapter = adapter;
-        this.inputReader = new SpatialInputReader(spark);
+        this.inputReader = new SpatialInputReader3(spark);
         this.bronzeWriter = new BronzeWriter(spark);
         this.silverBboxWriter = new SilverBboxWriter(spark);
         this.bucketServiceForBboxIndexing = new BucketServiceForBboxIndexing(spark);
@@ -52,7 +51,7 @@ public class SpatialWriting implements Serializable {
 
 
     public void bronzeLayer(TableSpec bronze, String inputPath)
-            throws NoSuchTableException, IOException {
+            throws Exception {
 
 
 
@@ -64,7 +63,7 @@ public class SpatialWriting implements Serializable {
     }
 
     public void bronzeLayerBinary(TableSpec bronze, String inputPath)
-            throws NoSuchTableException, IOException {
+            throws Exception {
 
         JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
@@ -78,7 +77,7 @@ public class SpatialWriting implements Serializable {
     public void silverLayerWithoutBboxIndexing(
             TableSpec silver,
             String inputPath
-            ) throws NoSuchTableException, IOException {
+            ) throws Exception {
 
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(
@@ -115,7 +114,7 @@ public class SpatialWriting implements Serializable {
             String inputPath,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize)
-            throws NoSuchTableException {
+            throws Exception {
 
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(
@@ -200,7 +199,7 @@ public class SpatialWriting implements Serializable {
             String inputPath,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize, String xColumn, String yColumn)
-            throws NoSuchTableException {
+            throws Exception {
 
         String bucketFileName =
                 "bucket_"

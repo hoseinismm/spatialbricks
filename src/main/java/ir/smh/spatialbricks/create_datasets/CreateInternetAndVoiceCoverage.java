@@ -1,5 +1,6 @@
 package ir.smh.spatialbricks.create_datasets;
 
+import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter2;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
@@ -21,7 +22,7 @@ public class CreateInternetAndVoiceCoverage {
 
         try {
 
-        var spark = SparkConfigLocal.createSession("../datasets/internet_&_voice_coverage");
+        var spark = SparkConfigLocal.createSession("../datasets/internet_and_voice_coverage2");
 
             try {
 
@@ -29,7 +30,7 @@ public class CreateInternetAndVoiceCoverage {
 
         SedonaContext.create(spark);
 
-        GeometryReader<?>  geoJsonFile= new geoJsonGeometricalAdapter();
+        GeometryReader<?>  geoJsonFile= new geoJsonGeometricalAdapter2();
 
         SpatialWriting spatialWriting = new SpatialWriting(spark,geoJsonFile, new SpatialParquet());
 
@@ -47,13 +48,13 @@ public class CreateInternetAndVoiceCoverage {
 
         long startTime = System.currentTimeMillis();
 
-          //spatialWriting.bronzeLayerBinary(bronze, path );
+          spatialWriting.bronzeLayerBinary(bronze, path );
 
 //        spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 
 //        spatialWriting.silverLayerWithBboxIndexing(silverIndexed, path, 30000L, 131072L);
 
-                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed,path);
+//        flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed,path);
 
 //        flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed,path,  30000L, 131072L);
 
@@ -63,6 +64,8 @@ public class CreateInternetAndVoiceCoverage {
 
         System.out.println("Time of writing: "+ duration);
 
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             } finally {
                 spark.stop();
             }
