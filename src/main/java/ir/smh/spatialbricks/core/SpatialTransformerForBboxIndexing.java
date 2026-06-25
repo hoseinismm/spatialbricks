@@ -17,7 +17,7 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
 
     static Dataset<Row> transform(
             Dataset<Row> df,
-            String bucketFileName,
+            TableSpec silver,
             JavaSparkContext jsc,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
@@ -31,7 +31,7 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
         BucketManagerForBboxIndexing.Bucket rootBucket =
                 BucketManagerForBboxIndexing.computeBucketBorders(
                         df,
-                        bucketFileName,
+                        silver,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
                         totalRowsHint, udfregistry

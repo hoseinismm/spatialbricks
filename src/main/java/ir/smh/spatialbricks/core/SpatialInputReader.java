@@ -2,33 +2,302 @@ package ir.smh.spatialbricks.core;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-
-import org.apache.spark.sql.*;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.sedona_sql.UDT.GeometryUDT$;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.locationtech.jts.geom.*;
+import org.locationtech.jts.io.geojson.GeoJsonReader;
 
 import java.io.Serializable;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class SpatialInputReader implements Serializable {
 
     private final SparkSession spark;
 
+    private static final ThreadLocal<GeoJsonReader> GEOJSON_READER =
+            ThreadLocal.withInitial(
+                    GeoJsonReader::new
+            );
+
     public SpatialInputReader(SparkSession spark) {
         this.spark = spark;
     }
 
-    public Dataset<Row> read(String inputPath) {
+    private StructType inferPropertiesSchema(
+            String inputPath) throws Exception {
+
+        List<String> samples =
+                spark.read()
+                        .textFile(inputPath)
+                        .takeAsList(100);
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        Map<String, DataType> columns =
+                new LinkedHashMap<>();
+
+        for (String line : samples) {
+
+            JsonNode root = mapper.readTree(line);
+
+            JsonNode properties = root.get("properties");
+
+            if (properties == null || !properties.isObject()) {
+                continue;
+            }
+
+            Iterator<Map.Entry<String, JsonNode>> fields =
+                    properties.fields();
+
+            while (fields.hasNext()) {
+
+                Map.Entry<String, JsonNode> field =
+                        fields.next();
+
+                String name = field.getKey();
+                JsonNode value = field.getValue();
+
+                if (value == null || value.isNull()) {
+                    continue;
+                }
+
+                DataType detectedType;
+
+                if (value.isTextual()) {
+                    detectedType = DataTypes.StringType;
+                }
+                else if (value.isIntegralNumber()) {
+                    detectedType = DataTypes.LongType;
+                }
+                else if (value.isFloatingPointNumber()) {
+                    detectedType = DataTypes.DoubleType;
+                }
+                else if (value.isBoolean()) {
+                    detectedType = DataTypes.BooleanType;
+                }
+                else {
+                    detectedType = DataTypes.StringType;
+                }
+
+                DataType existing = columns.get(name);
+
+                if (existing == null) {
+                    columns.put(name, detectedType);
+                }
+                else if (!existing.sameType(detectedType)) {
+                    columns.put(name, DataTypes.StringType);
+                }
+            }
+        }
+
+        StructType schema = new StructType();
+
+        for (Map.Entry<String, DataType> col : columns.entrySet()) {
+
+            schema = schema.add(
+                    col.getKey(),
+                    col.getValue(),
+                    true
+            );
+        }
+
+        return schema;
+    }
+
+    private StructType addGeometryColumn(
+            StructType propertiesSchema) {
+
+        StructType schema = new StructType()
+                .add(
+                        "geometry",
+                        GeometryUDT$.MODULE$,
+                        true
+                );
+
+        for (StructField field : propertiesSchema.fields()) {
+            schema = schema.add(field);
+        }
+
+        return schema;
+    }
+
+    private Object castValue(
+            JsonNode node,
+            DataType type) {
+
+        if (node == null || node.isNull()) {
+            return null;
+        }
+
+        try {
+
+            if (type.sameType(DataTypes.StringType)) {
+
+                if (node.isContainerNode()) {
+                    return node.toString();
+                }
+
+                return node.asText();
+            }
+
+            if (type.sameType(DataTypes.LongType)) {
+
+                if (!node.isNumber()) {
+                    return null;
+                }
+
+                return node.asLong();
+            }
+
+            if (type.sameType(DataTypes.DoubleType)) {
+
+                if (!node.isNumber()) {
+                    return null;
+                }
+
+                return node.asDouble();
+            }
+
+            if (type.sameType(DataTypes.BooleanType)) {
+
+                if (!node.isBoolean()) {
+                    return null;
+                }
+
+                return node.asBoolean();
+            }
+
+            return node.toString();
+
+        } catch (Exception e) {
+
+            return null;
+        }
+    }
+
+    private static final ObjectMapper MAPPER =
+            new ObjectMapper();
+
+    private JavaRDD<Row> buildRows(
+            JavaRDD<String> lines,
+            StructType propertiesSchema) {
+
+        return lines.map(line -> {
+
+            try {
+
+                JsonNode root =
+                        MAPPER.readTree(line);
+
+                JsonNode geometryNode =
+                        root.get("geometry");
+
+                if (geometryNode == null || geometryNode.isNull()) {
+                    return null;
+                }
+
+                JsonNode properties =
+                        root.get("properties");
+
+                List<Object> values =
+                        new ArrayList<>();
+
+                // geometry
+                Geometry geometry =
+                        GEOJSON_READER
+                                .get()
+                                .read(
+                                        geometryNode.toString()
+                                );
+
+                values.add(geometry);
+
+                // properties
+                for (StructField field :
+                        propertiesSchema.fields()) {
+
+                    JsonNode value =
+                            properties == null
+                                    ? null
+                                    : properties.get(
+                                    field.name()
+                            );
+
+                    values.add(
+                            castValue(
+                                    value,
+                                    field.dataType()
+                            )
+                    );
+                }
+
+                return RowFactory.create(
+                        values.toArray()
+                );
+
+            } catch (Exception e) {
+
+                System.err.println(
+                        "Error parsing feature: "
+                                + e.getMessage()
+                );
+
+                System.err.println(
+                        "Line: "
+                                + line
+                );
+
+                return null;
+            }
+
+        }).filter(Objects::nonNull);
+    }
+
+    public Dataset<Row> read(String inputPath) throws Exception {
 
         String path = inputPath.toLowerCase();
 
         if (path.endsWith(".json") || path.endsWith(".geojson")) {
-            return spark.read().json(inputPath);
+
+
+
+            StructType propertiesSchema =
+                    inferPropertiesSchema(
+                            inputPath
+                    );
+
+            StructType finalSchema =
+                    addGeometryColumn(
+                            propertiesSchema
+                    );
+
+            JavaRDD<String> lines =
+                    spark.read()
+                            .textFile(inputPath)
+                            .javaRDD();
+
+            JavaRDD<Row> rows =
+                    buildRows(
+                            lines,
+                            propertiesSchema
+                    );
+
+            Dataset<Row> df =
+                    spark.createDataFrame(
+                            rows,
+                            finalSchema
+                    );
+
+            return df;
         }
 
         if (path.endsWith(".parquet")) {

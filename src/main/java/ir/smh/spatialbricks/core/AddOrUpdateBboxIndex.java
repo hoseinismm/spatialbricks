@@ -57,7 +57,7 @@ public class AddOrUpdateBboxIndex {
         updateIndex(
                 fullName,
                 unindexedRows,
-                getBucketFileName(silver),
+                silver,
                 rowsCapableOfProcessingByDriver,
                 maxPartitionSize,
                 totalRowsHint,
@@ -97,7 +97,7 @@ public class AddOrUpdateBboxIndex {
         updateIndex(
                 fullName,
                 rowsToReindex,
-                bucketFileName,
+                silver,
                 rowsCapableOfProcessingByDriver,
                 maxPartitionSize,
                 totalRowsHint,
@@ -111,7 +111,7 @@ public class AddOrUpdateBboxIndex {
     private void updateIndex(
             String fullName,
             Dataset<Row> rows,
-            String bucketFileName,
+            TableSpec silver,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
             Long totalRowsHint,
@@ -125,7 +125,7 @@ public class AddOrUpdateBboxIndex {
         BucketManagerForBboxIndexing.Bucket bucket =
                 BucketManagerForBboxIndexing.computeBucketBorders(
                         rows,
-                        bucketFileName,
+                        silver,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
                         totalRowsHint, udfRegistry

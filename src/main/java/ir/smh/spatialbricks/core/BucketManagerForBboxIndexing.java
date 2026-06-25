@@ -10,6 +10,9 @@ import java.io.*;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.Files;
 
 public class BucketManagerForBboxIndexing {
 
@@ -200,11 +203,20 @@ public class BucketManagerForBboxIndexing {
 
     public static Bucket computeBucketBorders(
             Dataset<Row> df,
-            String bucketFile,
+            TableSpec silver,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
             Long totalRowsHint,
             UDFRegistry udfRegistry) {
+
+        Path bucketPath = Paths.get(
+                silver.path(),
+                String.format(
+                        "bucket_%s_%s.gz",
+                        silver.database(),
+                        silver.table()
+                )
+        );
 
         long totalRows =
                 totalRowsHint != null
@@ -212,7 +224,10 @@ public class BucketManagerForBboxIndexing {
                         : df.count();
 
         double fraction =
-                Math.min(1.0, (double) rowsCapableOfProcessingByDriver / totalRows);
+                Math.min(
+                        1.0,
+                        (double) rowsCapableOfProcessingByDriver / totalRows
+                );
 
         udfRegistry.registerBboxUdf(
                 df.sparkSession()
@@ -226,22 +241,51 @@ public class BucketManagerForBboxIndexing {
                                 col("geometry")
                         ).alias("bbox")
                 );
+
         List<Row> rows = bboxDf.collectAsList();
 
         Bucket rootBucket;
 
-        File f = new File(bucketFile);
+        if (Files.exists(bucketPath)) {
 
-        if (f.exists()) {
-            rootBucket = loadBucket(bucketFile);
-            System.out.println("Bucket loaded from: " + bucketFile);
-            if (rootBucket == null) rootBucket = initialBucket(-180.0,-90.0,180.0,90.0);
+            rootBucket =
+                    loadBucket(
+                            bucketPath.toString()
+                    );
+
+            System.out.println(
+                    "Bucket loaded from: "
+                            + bucketPath
+            );
+
+            if (rootBucket == null) {
+                rootBucket =
+                        initialBucket(
+                                -180.0,
+                                -90.0,
+                                180.0,
+                                90.0
+                        );
+            }
+
         } else {
-            rootBucket = initialBucket(-180.0,-90.0,180.0,90.0);
-            System.out.println("Created new bucket for: " + bucketFile);
+
+            rootBucket =
+                    initialBucket(
+                            -180.0,
+                            -90.0,
+                            180.0,
+                            90.0
+                    );
+
+            System.out.println(
+                    "Created new bucket for: "
+                            + bucketPath
+            );
         }
 
         if (fraction != 0.0) {
+
             addGeosToBuckets(
                     rows,
                     rootBucket,
@@ -250,7 +294,10 @@ public class BucketManagerForBboxIndexing {
             );
         }
 
-        saveBucket(rootBucket, bucketFile);
+        saveBucket(
+                rootBucket,
+                bucketPath.toString()
+        );
 
         return rootBucket;
     }

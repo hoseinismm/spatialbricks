@@ -91,11 +91,8 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
                 } else if (input instanceof String && adapter instanceof WKTReaderAdapter) {
                     geometry = ((WKTReaderAdapter) adapter).inputToGeometry((String) input);
 
-                } else  if (input instanceof Row && adapter instanceof geoJsonGeometricalAdapter) {
-                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Row) input);
-
-                } else  if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter2) {
-                    geometry = ((geoJsonGeometricalAdapter2) adapter).inputToGeometry((Geometry) input);
+                } else  if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter) {
+                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
 
                 } else {
                     throw new IllegalArgumentException("Unsupported input: " + input.getClass());

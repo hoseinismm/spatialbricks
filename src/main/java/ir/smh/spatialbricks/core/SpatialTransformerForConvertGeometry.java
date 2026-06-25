@@ -2,6 +2,7 @@ package ir.smh.spatialbricks.core;
 
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.storage.StorageLevel;
 
 import java.io.Serializable;
 
@@ -24,7 +25,9 @@ public class SpatialTransformerForConvertGeometry implements Serializable {
                                 col("geometry")
                         )
                 )
-                .filter(col("geometry").isNotNull());
+                .filter(col("geometry").isNotNull())
+                .cache();
+
 
         //long n2 = transformed.count();
         //System.out.println("Row count n2 = " + n2);

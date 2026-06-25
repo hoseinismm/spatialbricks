@@ -19,7 +19,7 @@ public class SpatialWriting implements Serializable {
 
     private final SparkSession spark;
     private final GeometryReader<?> adapter;
-    private final SpatialInputReader3 inputReader;
+    private final SpatialInputReader inputReader;
     private final BronzeWriter bronzeWriter;
     private final SilverBboxWriter silverBboxWriter;
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
@@ -29,7 +29,7 @@ public class SpatialWriting implements Serializable {
             (SparkSession spark, GeometryReader<?> adapter, UDFRegistry udfRegistry) {
         this.spark = spark;
         this.adapter = adapter;
-        this.inputReader = new SpatialInputReader3(spark);
+        this.inputReader = new SpatialInputReader(spark);
         this.bronzeWriter = new BronzeWriter(spark);
         this.silverBboxWriter = new SilverBboxWriter(spark);
         this.bucketServiceForBboxIndexing = new BucketServiceForBboxIndexing(spark);
@@ -52,8 +52,6 @@ public class SpatialWriting implements Serializable {
 
     public void bronzeLayer(TableSpec bronze, String inputPath)
             throws Exception {
-
-
 
         Dataset<Row> df = inputReader.read(inputPath);
 
@@ -79,10 +77,6 @@ public class SpatialWriting implements Serializable {
             String inputPath
             ) throws Exception {
 
-        JavaSparkContext jsc =
-                JavaSparkContext.fromSparkContext(
-                        spark.sparkContext());
-
         Dataset<Row> df =
                 inputReader.read(inputPath);
 //        df.printSchema();
@@ -105,9 +99,6 @@ public class SpatialWriting implements Serializable {
 
         silverBboxWriter.writeSilver(silver, transformed);
     }
-
-
-
 
     public void silverLayerWithBboxIndexing(
             TableSpec silver,
@@ -140,13 +131,6 @@ public class SpatialWriting implements Serializable {
 
         udfRegistry.registerGeometryUdf(spark, adapter);
 
-        String bucketFileName =
-                "bucket_"
-                        + silver.database()
-                        + "_"
-                        + silver.table()
-                        + ".gz";
-
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(
                         spark.sparkContext());
@@ -165,7 +149,7 @@ public class SpatialWriting implements Serializable {
         transformed =
                 SpatialTransformerForBboxIndexing.transform(
                         transformed,
-                        bucketFileName,
+                        silver,
                         jsc,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
@@ -177,7 +161,6 @@ public class SpatialWriting implements Serializable {
                 transformed
         );
     }
-
 
     private Dataset<Row> checkGeometryColumnName(Dataset<Row> df) {
 
@@ -201,13 +184,6 @@ public class SpatialWriting implements Serializable {
             long maxPartitionSize, String xColumn, String yColumn)
             throws Exception {
 
-        String bucketFileName =
-                "bucket_"
-                        + silver.database()
-                        + "_"
-                        + silver.table()
-                        + ".gz";
-
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(
                         spark.sparkContext());
@@ -225,11 +201,12 @@ public class SpatialWriting implements Serializable {
         transformed =
                 SpatialTransformerForBboxIndexing.transform(
                         transformed,
-                        bucketFileName,
+                        silver,
                         jsc,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
-                        totalRowsHint, udfRegistry
+                        totalRowsHint,
+                        udfRegistry
                 );
 
         silverBboxWriter.writeSilver(
