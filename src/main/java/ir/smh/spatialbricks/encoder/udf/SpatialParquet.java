@@ -25,6 +25,10 @@ public class SpatialParquet implements UDFRegistry, Serializable {
     public SpatialParquet() {
     }
 
+    public Map<String, Object> parse(Geometry geometry) {
+        return  ParseGeometryForSpatial.parseGeometry(geometry);
+    }
+
     // =========================================================
     // SCHEMAS
     // =========================================================

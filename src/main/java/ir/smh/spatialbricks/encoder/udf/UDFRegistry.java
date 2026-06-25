@@ -6,6 +6,9 @@ import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.locationtech.jts.geom.Geometry;
+
+import java.util.Map;
 
 public interface UDFRegistry {
     void registerGeometryUdf(SparkSession spark, GeometryReader adapter);
@@ -19,4 +22,5 @@ public interface UDFRegistry {
             String yColumn,
             String geometryColumnName
     );
+    Map<String, Object> parse(Geometry geometry);
 }

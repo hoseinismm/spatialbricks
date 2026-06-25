@@ -63,6 +63,10 @@ public class FlattenSpatialParquet implements UDFRegistry, Serializable {
                     DataTypes.createStructField("bbox_partitioning", BUCKET_SCHEMA, true)
             });
 
+    public Map<String, Object> parse(Geometry geometry) {
+        return  ParseGeometryForFlatten.parseGeometry(geometry);
+    }
+
 
 
     // =========================================================
