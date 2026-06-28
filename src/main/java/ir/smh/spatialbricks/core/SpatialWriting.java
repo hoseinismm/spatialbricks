@@ -10,6 +10,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
+import org.apache.spark.storage.StorageLevel;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -19,7 +20,7 @@ public class SpatialWriting implements Serializable {
 
     private final SparkSession spark;
     private final GeometryReader<?> adapter;
-    private final SpatialInputReader inputReader;
+    private final SpatialInputReader4 inputReader;
     private final BronzeWriter bronzeWriter;
     private final SilverBboxWriter silverBboxWriter;
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
@@ -29,7 +30,7 @@ public class SpatialWriting implements Serializable {
             (SparkSession spark, GeometryReader<?> adapter, UDFRegistry udfRegistry) {
         this.spark = spark;
         this.adapter = adapter;
-        this.inputReader = new SpatialInputReader(spark);
+        this.inputReader = new SpatialInputReader4(spark);
         this.bronzeWriter = new BronzeWriter(spark);
         this.silverBboxWriter = new SilverBboxWriter(spark);
         this.bucketServiceForBboxIndexing = new BucketServiceForBboxIndexing(spark);
@@ -95,7 +96,7 @@ public class SpatialWriting implements Serializable {
 
         udfRegistry.registerGeometryUdf(spark, adapter);
 
-        Dataset<Row> transformed = SpatialTransformerForConvertGeometry.transform(df);
+        Dataset<Row> transformed = SpatialTransformerForConvertGeometry.transform(df, false);
 
         silverBboxWriter.writeSilver(silver, transformed);
     }
@@ -144,7 +145,7 @@ public class SpatialWriting implements Serializable {
 
         Dataset<Row> transformed =
                 SpatialTransformerForConvertGeometry
-                        .transform(df);
+                        .transform(df, true);
 
         transformed =
                 SpatialTransformerForBboxIndexing.transform(
@@ -192,6 +193,11 @@ public class SpatialWriting implements Serializable {
                 inputReader.read(inputPath);
 
         Dataset<Row> transformed = udfRegistry.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
+
+//        transformed=transformed.cache();
+
+
+
 
         Long totalRowsHint =
                 bucketServiceForBboxIndexing.updateBucket(

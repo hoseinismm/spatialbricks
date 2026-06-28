@@ -20,8 +20,9 @@ public class CreatePortoTaxiFromChuncedParquetFiles {
         PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
 
         try {
+            String folderpath = "../datasets/portotaxi";
 
-        var spark = SparkConfigLocal.createSession("../datasets/portotaxi");
+        var spark = SparkConfigLocal.createSession(folderpath);
             try {
 
         spark.sparkContext().setLogLevel("ERROR");
@@ -36,13 +37,13 @@ public class CreatePortoTaxiFromChuncedParquetFiles {
 
         SpatialWriting flattenSpatialWriting= new SpatialWriting(spark,geoparqetFile, udfRegistry );
 
-        TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", "");
+        TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", folderpath);
 
-        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "portotaxi", "");
+        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "portotaxi", folderpath);
 
-        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "portotaxi", "");
+        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "portotaxi", folderpath);
 
-        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "portotaxi", "");
+        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "portotaxi", folderpath);
 
         long start = System.currentTimeMillis();
 

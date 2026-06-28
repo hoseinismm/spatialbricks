@@ -158,6 +158,7 @@ public class BucketManagerForBboxIndexing {
                                      new FileOutputStream(filename)))) {
 
             out.writeObject(bucket);
+            System.out.println("Bucket saved to " + filename);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -245,7 +246,6 @@ public class BucketManagerForBboxIndexing {
         List<Row> rows = bboxDf.collectAsList();
 
         Bucket rootBucket;
-
         if (Files.exists(bucketPath)) {
 
             rootBucket =

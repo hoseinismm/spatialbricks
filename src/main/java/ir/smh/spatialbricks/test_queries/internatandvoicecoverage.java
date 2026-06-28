@@ -1,8 +1,8 @@
 package ir.smh.spatialbricks.test_queries;
 
+import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.TableSpec;
-import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
 import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
@@ -22,47 +22,50 @@ public class internatandvoicecoverage {
 
     public static void main(String[] args) throws Exception {
 
-        PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
+        SparkSession spark =  createSpark();
 
         try {
 
-            final int runs = 10;
-
-            SparkSession spark = createSpark();
+            PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
 
             try {
 
-        String path = "../datasets/internet_and_voice_coverage/binaryformat/internet_and_voice_coverage/output_geoparquet/";
+                final int runs = 10;
 
-        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "internet_and_voice_coverage", "");
-        TableSpec silverIndexed = new TableSpec("silverIndexed", "internet_and_voice_coverage", "");
-        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "internet_and_voice_coverage", "");
-        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "internet_and_voice_coverage", "");
 
-        long[][] results = runBenchmarks(
-                spark,
-                runs,
-                path,
-                silverUnindexed,
-                silverIndexed,
-                flattenSilverUnindexed,
-                flattenSilverIndexed
-        );
+                String path = "../datasets/internet_and_voice_coverage/bronze/internet_and_voice_coverage/output_geoparquet/";
 
-        writeResults(results, runs);
-            }   finally {
-                spark.stop();
+                TableSpec silverUnindexed = new TableSpec("silverUnindexed", "internet_and_voice_coverage", "");
+                TableSpec silverIndexed = new TableSpec("silverIndexed", "internet_and_voice_coverage", "");
+                TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "internet_and_voice_coverage", "");
+                TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "internet_and_voice_coverage", "");
+
+                long[][] results = runBenchmarks(
+                        runs,
+                        spark,
+                        path,
+                        silverUnindexed,
+                        silverIndexed,
+                        flattenSilverUnindexed,
+                        flattenSilverIndexed
+                );
+
+                writeResults(results, runs);
+
+            } finally {
+                PowerPlanUtil.setPowerPlan(PowerPlanUtil.BALANCED);
             }
 
         } finally {
-            PowerPlanUtil.setPowerPlan(PowerPlanUtil.BALANCED);
+            spark.stop();
         }
+
     }
 
     private static SparkSession createSpark() {
 
         SparkSession spark =
-                SparkConfig.createSession("../datasets/internet_and_voice_coverage");
+                SparkConfigLocal.createSession("../datasets/internet_and_voice_coverage");
 
         SedonaContext.create(spark);
         SedonaSQLRegistrator.registerAll(spark);
@@ -70,9 +73,11 @@ public class internatandvoicecoverage {
         return spark;
     }
 
+
+
     private static long[][] runBenchmarks(
-            SparkSession spark,
             int runs,
+            SparkSession spark,
             String path,
             TableSpec silverUnindexed,
             TableSpec silverIndexed,
@@ -84,18 +89,49 @@ public class internatandvoicecoverage {
 
         for (int i = 0; i < runs; i++) {
 
-            System.out.println("Run " + (i + 1));
+                System.out.println("Run " + (i + 1));
 
-            results[0][i] = testQueryInGeoParquet(spark, path);
-            results[1][i] = testQueryInUnindexed(spark, silverUnindexed, new SpatialParquet());
-            results[2][i] = testQueryInIndexed(spark, silverIndexed, new SpatialParquet());
-            results[3][i] = testQueryInUnindexed(spark, flattenSilverUnindexed, new FlattenSpatialParquet());
-            results[4][i] = testQueryInIndexed(spark, flattenSilverIndexed, new FlattenSpatialParquet());
-            results[5][i] = testDecodeForGeoparquet(spark, path);
-            results[6][i] = testDecode(spark, silverUnindexed, new SpatialParquet());
-            results[7][i] = testDecode(spark, silverIndexed, new SpatialParquet());
-            results[8][i] = testDecode(spark, flattenSilverUnindexed, new FlattenSpatialParquet());
-            results[9][i] = testDecode(spark, flattenSilverIndexed, new FlattenSpatialParquet());
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[0][i] = testQueryInGeoParquet(spark, path);
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[1][i] = 0; //testQueryInUnindexed(spark, silverUnindexed, new SpatialParquet());
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[2][i] = testQueryInIndexed(spark, silverIndexed, new SpatialParquet());
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[3][i] = testQueryInUnindexed(spark, flattenSilverUnindexed, new FlattenSpatialParquet());
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[4][i] = testQueryInIndexed(spark, flattenSilverIndexed, new FlattenSpatialParquet());
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[5][i] = testDecodeForGeoparquet(spark, path);
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[6][i] =0;// testDecode(spark, silverUnindexed, new SpatialParquet());
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[7][i] = testDecode(spark, silverIndexed, new SpatialParquet());
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[8][i] = testDecode(spark, flattenSilverUnindexed, new FlattenSpatialParquet());
+                spark.catalog().clearCache();
+                System.gc();
+                Thread.sleep(3000);
+                results[9][i] = testDecode(spark, flattenSilverIndexed, new FlattenSpatialParquet());
+
         }
 
         return results;
@@ -118,7 +154,7 @@ public class internatandvoicecoverage {
 
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark_for_internet_and_voice_coverage.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmark_internet_and_voice_coverage2.csv")) {
 
             out.print("Test");
 
@@ -163,8 +199,11 @@ public class internatandvoicecoverage {
 
 
         System.out.println("Querying from geoparquet file time = " + duration);
+        spark.catalog().dropTempView("table");
+        table = null;
 
         return duration;
+
     }
 
 
@@ -205,6 +244,10 @@ public class internatandvoicecoverage {
 
         System.out.println("Querying from  " +fullName+ " = " + duration);
 
+        t1 = null;
+        spark.catalog().dropTempView("table");
+
+
         return  duration;
     }
 
@@ -237,6 +280,9 @@ public class internatandvoicecoverage {
         long duration = System.currentTimeMillis() - start;
 
         System.out.println("Querying from  " +fullName+ " = " + duration);
+
+        t1 = null;
+        spark.catalog().dropTempView("table");
 
         return  duration;
     }
@@ -276,6 +322,8 @@ public class internatandvoicecoverage {
         System.out.println(
                 "GeoParquet decode time = "
                         + duration);
+        t1 = null;
+
 
         return  duration;
     }

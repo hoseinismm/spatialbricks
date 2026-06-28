@@ -11,11 +11,9 @@ import static org.apache.spark.sql.functions.*;
 public class SpatialTransformerForConvertGeometry implements Serializable {
 
     static Dataset<Row> transform(
-            Dataset<Row> df
+            Dataset<Row> df,
+            boolean cacheResult
     ) {
-
-        //long n1 = df.count();
-        //System.out.println("Row count n1 = " + n1);
 
         Dataset<Row> transformed = df
                 .withColumn(
@@ -25,14 +23,12 @@ public class SpatialTransformerForConvertGeometry implements Serializable {
                                 col("geometry")
                         )
                 )
-                .filter(col("geometry").isNotNull())
-                .cache();
+                .filter(col("geometry").isNotNull());
 
-
-        //long n2 = transformed.count();
-        //System.out.println("Row count n2 = " + n2);
+        if (cacheResult) {
+            transformed = transformed.cache();
+        }
 
         return transformed;
     }
-
 }

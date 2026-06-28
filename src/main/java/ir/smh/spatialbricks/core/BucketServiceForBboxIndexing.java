@@ -5,6 +5,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
 
 import static org.apache.spark.sql.functions.col;
@@ -24,7 +25,9 @@ public class BucketServiceForBboxIndexing {
         String metadataTable = fullName + ".partitions";
         String bucketFileName = "bucket_" + silver.database() + "_" + silver.table() + ".gz";
 
-        File f = new File(bucketFileName);
+        String bucketPath = Paths.get(silver.path(), bucketFileName).toString();
+
+        File f = new File(bucketPath);
         if (!f.exists()) {
             System.out.println("Bucket " + bucketFileName + " does not exist to update");
             return null;
@@ -56,11 +59,13 @@ public class BucketServiceForBboxIndexing {
             }
         }
 
-        BucketManagerForBboxIndexing.Bucket bucket = BucketManagerForBboxIndexing.loadBucket(bucketFileName);
+        BucketManagerForBboxIndexing.Bucket bucket = BucketManagerForBboxIndexing.loadBucket(bucketPath);
 
         System.out.println("partition metadata"+partitionStats);
 
         BucketManagerForBboxIndexing.updateTreeFromStats(partitionStats, bucket);
+
+        BucketManagerForBboxIndexing.saveBucket(bucket, bucketPath);
 
         System.out.println("Bucket updated to " + bucketFileName);
     return totalRowsHint;

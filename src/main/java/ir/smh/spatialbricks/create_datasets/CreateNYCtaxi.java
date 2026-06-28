@@ -21,7 +21,9 @@ public class CreateNYCtaxi {
 
         try {
 
-            var spark = SparkConfigLocal.createSession("../datasets/nyc_taxi");
+            String folderpath ="../datasets/nyc_taxi";
+
+            var spark = SparkConfigLocal.createSession(folderpath);
             try {
 
         spark.sparkContext().setLogLevel("ERROR");
@@ -32,13 +34,13 @@ public class CreateNYCtaxi {
 
         SpatialWriting flattenspatialwriting = new SpatialWriting(spark, null, new FlattenSpatialParquet());
 
-        TableSpec silverIndexed = new TableSpec("silverIndexed", "nyc_taxi", "");
-        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "nyc_taxi", "");
-        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "nyc_taxi", "");
-        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "nyc_taxi","");
+        TableSpec silverIndexed = new TableSpec("silverIndexed", "nyc_taxi", folderpath);
+        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "nyc_taxi", folderpath);
+        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "nyc_taxi", folderpath);
+        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "nyc_taxi",folderpath);
         TableSpec Sorted = new TableSpec("Sorted", "nyc_taxi","");
 
-        String path =   "../datasets/nyc_taxi/yellow_tripdata_2009-0*.parquet";
+        String path =   "../datasets/nyc_taxi/yellow_tripdata_2009-0?.parquet";
 
         long startTime = System.currentTimeMillis();
 
@@ -64,13 +66,13 @@ public class CreateNYCtaxi {
 //                path,150000L, 131072L, "End_Lon","End_Lat"
 //        );
 
-        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
-                path, "Start_Lon","Start_Lat"
-        );
-//
-        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
-                path, "End_Lon","End_Lat"
-        );
+//        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
+//                path, "Start_Lon","Start_Lat"
+//        );
+////
+//        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
+//                path, "End_Lon","End_Lat"
+//        );
 
 //        FlattenSpatialParquet flattenSpatialParquet = new FlattenSpatialParquet();
 //        flattenSpatialParquet.registerAddGeohash(spark);
@@ -95,6 +97,8 @@ public class CreateNYCtaxi {
 
                 System.out.println("Time of writing : " + duration);
 
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             } finally {
                 spark.stop();
             }

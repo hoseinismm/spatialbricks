@@ -22,6 +22,9 @@ public class SparkConfigLocal {
                 .config("spark.sql.shuffle.partitions", "50")
                 .config("spark.default.parallelism", "50")
                 .config("spark.sql.autoBroadcastJoinThreshold", "-1")
+//                .config("spark.sql.files.maxPartitionBytes", "32m")
+//                .config("spark.sql.parquet.blockSize", "32m")
+
 
                 // ================= SEDONA + ICEBERG =================
                 .config("spark.sql.extensions",
@@ -39,7 +42,7 @@ public class SparkConfigLocal {
                         "org.apache.sedona:sedona-spark-shaded-3.5_2.13:1.7.2"
                 }))
 
-                .master("local[*]") // مهم
+                .master("local[4]") // مهم
 
                 .getOrCreate();
     }

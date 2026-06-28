@@ -1,5 +1,6 @@
 package ir.smh.spatialbricks.create_datasets;
 
+import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
@@ -22,7 +23,9 @@ public class CreateAuBuildings {
 
         try {
 
-            var spark = SparkConfigLocal.createSession("../datasets/aubuildings");
+            String folderpath = "../datasets/aubuildings";
+
+            var spark = SparkConfig.createSession(folderpath);
 
             try {
 
@@ -41,19 +44,19 @@ public class CreateAuBuildings {
                 String path = "../datasets/aubuildings/AUBuildingsndjson.geojson";
 
                 TableSpec bronze =
-                        new TableSpec("bronze", "aubuildings", "");
+                        new TableSpec("bronze", "aubuildings", folderpath);
 
                 TableSpec silverIndexed =
-                        new TableSpec("silverIndexed", "aubuildings", "");
+                        new TableSpec("silverIndexed", "aubuildings", folderpath);
 
                 TableSpec silverUnindexed =
-                        new TableSpec("silverUnindexed", "aubuildings", "");
+                        new TableSpec("silverUnindexed", "aubuildings", folderpath);
 
                 TableSpec flattenSilverUnindexed =
-                        new TableSpec("flattenSilverUnindexed", "aubuildings", "");
+                        new TableSpec("flattenSilverUnindexed", "aubuildings", folderpath);
 
                 TableSpec flattenSilverIndexed =
-                        new TableSpec("flattenSilverIndexed", "aubuildings", "");
+                        new TableSpec("flattenSilverIndexed", "aubuildings", folderpath);
 
                 long startTime = System.currentTimeMillis();
 
@@ -66,7 +69,7 @@ public class CreateAuBuildings {
 //                );
 
 //                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
-
+//
                 flattenSpatialWriting.silverLayerWithBboxIndexing(
                         flattenSilverIndexed, path, 150000L, 131072L
                 );

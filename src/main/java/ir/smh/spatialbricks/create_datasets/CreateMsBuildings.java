@@ -22,7 +22,10 @@ public class CreateMsBuildings {
 
         try {
 
-            var spark = SparkConfigLocal.createSession("../datasets/msbuildings");
+            String folderpath = "../datasets/msbuildings";
+
+            var spark = SparkConfigLocal.createSession(folderpath);
+
 
             try {
 
@@ -41,19 +44,19 @@ public class CreateMsBuildings {
                 String path = "../datasets/msbuildings/MSBuildingsndjson.geojson";
 
                 TableSpec bronze =
-                        new TableSpec("bronze", "msbuildings", "");
+                        new TableSpec("bronze", "msbuildings", folderpath);
 
                 TableSpec silverIndexed =
-                        new TableSpec("silverIndexed", "msbuildings", "");
+                        new TableSpec("silverIndexed", "msbuildings", folderpath);
 
                 TableSpec silverUnindexed =
-                        new TableSpec("silverUnindexed", "msbuildings", "");
+                        new TableSpec("silverUnindexed", "msbuildings", folderpath);
 
                 TableSpec flattenSilverUnindexed =
-                        new TableSpec("flattenSilverUnindexed", "msbuildings", "");
+                        new TableSpec("flattenSilverUnindexed", "msbuildings", folderpath);
 
                 TableSpec flattenSilverIndexed =
-                        new TableSpec("flattenSilverIndexed", "msbuildings", "");
+                        new TableSpec("flattenSilverIndexed", "msbuildings", folderpath);
 
                 long startTime = System.currentTimeMillis();
 

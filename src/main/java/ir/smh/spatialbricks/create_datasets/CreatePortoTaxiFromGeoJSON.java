@@ -21,7 +21,9 @@ public class CreatePortoTaxiFromGeoJSON {
 
         try {
 
-        var spark = SparkConfigLocal.createSession("../datasets/portotaxi2");
+            String folderpath = "../datasets/portotaxi2";
+
+        var spark = SparkConfigLocal.createSession(folderpath);
             try {
 
         spark.sparkContext().setLogLevel("ERROR");
@@ -34,21 +36,21 @@ public class CreatePortoTaxiFromGeoJSON {
 
         SpatialWriting flattenSpatialWriting= new SpatialWriting(spark,geoparqetFile, new FlattenSpatialParquet());
 
-        TableSpec bronze = new TableSpec("bronze", "portotaxi", "");
+        TableSpec bronze = new TableSpec("bronze", "portotaxi", folderpath);
 
-        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "portotaxi", "");
+        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "portotaxi", folderpath);
 
-         TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", "");
+         TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", folderpath);
 
-        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "portotaxi", "");
+        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "portotaxi", folderpath);
 
-        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "portotaxi", "");
+        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "portotaxi", folderpath);
 
         long start = System.currentTimeMillis();
 
             String path ="../datasets/portotaxi2/portotaxindjson.geojson";
 
-//          spatialWriting.bronzeLayerBinary(bronze, path);
+          spatialWriting.bronzeLayerBinary(bronze, path);
 
 //          spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 
@@ -56,7 +58,7 @@ public class CreatePortoTaxiFromGeoJSON {
 
 //          flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path );
 
-          flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed,path, 150000L, 131072L);
+//          flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed,path, 150000L, 131072L);
 
         long duration = System.currentTimeMillis() - start;
 

@@ -51,11 +51,11 @@ public class CreateInternetAndVoiceCoverage {
 
         long startTime = System.currentTimeMillis();
 
-//          spatialWriting.bronzeLayerBinary(bronze, path );
+          spatialWriting.bronzeLayerBinary(bronze, path );
 
 //        spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 
-        spatialWriting.silverLayerWithBboxIndexing(silverIndexed, path, 68L, 32L);
+//        spatialWriting.silverLayerWithBboxIndexing(silverIndexed, path, 68L, 32L);
 
 //        flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed,path);
 
