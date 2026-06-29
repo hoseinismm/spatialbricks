@@ -7,8 +7,6 @@ import org.locationtech.jts.io.WKBReader;
 
 public class WKBParquetDecoder {
 
-    private static final WKBReader reader = new WKBReader();
-
     public static Geometry geometryToJTS(Row row) throws ParseException {
 
         if (row == null) {
@@ -17,7 +15,8 @@ public class WKBParquetDecoder {
 
         byte[] wkb = (byte[]) row.get(0);
 
-        return reader.read(wkb);
+        return new WKBReader().read(wkb);
     }
+
 }
 

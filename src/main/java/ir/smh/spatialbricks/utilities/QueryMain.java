@@ -4,6 +4,7 @@ package ir.smh.spatialbricks.utilities;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.udf.SpatialParquet;
 import ir.smh.spatialbricks.udf.UDFRegistry;
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
@@ -14,21 +15,17 @@ import java.io.IOException;
 public class QueryMain {
     public static void main(String[] args) throws IOException, NoSuchTableException, ParseException {
 
-        var spark = SparkConfigLocal.createSession("../datasets/portotaxi2");
+        var spark = SparkConfigLocal.createSession("../datasets/aubuildings");
         spark.sparkContext().setLogLevel("ERROR");
         SedonaContext.create(spark);
-        UDFRegistry udfRegistry=new SpatialParquet();
+        UDFRegistry udfRegistry=new WKBIndexedParquet();
         udfRegistry.registerDecode(spark);
         SedonaSQLRegistrator.registerAll(spark);
         spark.sql("""
-        
-                        SELECT
-                        sum(
-                     ST_NumGeometries(
-                                decodeGeometry(geometry)
-                        ))
-        
-        FROM silverUnindexed.portotaxi
+                SELECT
+              ST_AsText(ST_GeomFromWKB(geometry.geom))
+          FROM wkbIndexed.aubuildings
+          LIMIT 20;
         """).show(false);
 
 

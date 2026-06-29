@@ -19,7 +19,7 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.locationtech.jts.geom.*;
 import org.locationtech.jts.io.WKBReader;
-import org.locationtech.jts.io.WKBWriter;
+
 
 import java.io.Serializable;
 
@@ -29,6 +29,7 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
 
     public WKBIndexedParquet() {
     }
+
 
     // =========================================================
     // SCHEMAS (shared)
@@ -56,9 +57,6 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
                     DataTypes.createStructField("geom", DataTypes.BinaryType, false),
                     DataTypes.createStructField("bbox_partitioning", BUCKET_SCHEMA, true)
             });
-
-    private static final WKBReader reader = new WKBReader();
-    private static final WKBWriter wkbWriter = new WKBWriter();
 
     public byte[] parse(Geometry geometry) {
         return  ParseGeometryForWKB.parseGeometry(geometry);
@@ -153,8 +151,8 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
     // =========================================================
 
     public void registerBucketUdf(SparkSession spark,
-                                  Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets) {
-        BucketManagerForBboxIndexing.Bucket root =
+                                  Broadcast<Bucket> broadcastRootBuckets) {
+        Bucket root =
                 broadcastRootBuckets.value();
 
         spark.udf().register(
@@ -215,7 +213,7 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
 
                         byte[] geom = (byte[]) g;
 
-                        Geometry geometry = reader.read(geom);
+                        Geometry geometry = new WKBReader().read(geom);
 
                         if (geometry == null || geometry.isEmpty()) {
                             return null;
@@ -254,9 +252,9 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
 
             byte[] geom = (byte[]) wkb;
 
-            Geometry g = reader.read(geom);
+            Geometry g = new WKBReader().read(geom);
 
-            if (g == null || g.isEmpty()) {
+            if (g.isEmpty()) {
                 return null;
             }
 
@@ -307,7 +305,6 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
     public void registerCreatePointGeometry(SparkSession spark) {
 
         GeometryFactory geometryFactory = new GeometryFactory();
-        WKBWriter writer = new WKBWriter();
 
         spark.udf().register(
                 "createPointGeometry",
@@ -317,12 +314,12 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
                         return null;
                     }
 
-                    Point point = geometryFactory.createPoint(new Coordinate(x, y));
-                    byte[] wkb = writer.write(point);
+                    Point point = geometryFactory.createPoint(
+                            new Coordinate(x, y)
+                    );
 
-                    return RowFactory.create(
-                            wkb,   // geom : Array<Binary>
-                            null                  // bbox_partitioning
+                    return geometryToRow(
+                            ParseGeometryForWKB.parseGeometry(point)
                     );
                 },
                 GEOMETRY_TYPE

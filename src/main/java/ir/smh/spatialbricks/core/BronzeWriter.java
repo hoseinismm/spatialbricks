@@ -5,7 +5,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.types.StructType;
-import static org.apache.spark.sql.functions.col;
+
 
 import org.apache.spark.sql.SparkSession;
 

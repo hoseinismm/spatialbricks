@@ -63,7 +63,6 @@ public class SpatialWriting implements Serializable {
     public void bronzeLayerBinary(TableSpec bronze, String inputPath)
             throws Exception {
 
-        JavaSparkContext jsc = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
         Dataset<Row> df = inputReader.read(inputPath);
 

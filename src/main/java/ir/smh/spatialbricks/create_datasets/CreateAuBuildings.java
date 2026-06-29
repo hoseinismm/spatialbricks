@@ -7,6 +7,7 @@ import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.udf.SpatialParquet;
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
@@ -40,6 +41,8 @@ public class CreateAuBuildings {
                 SpatialWriting flattenSpatialWriting =
                         new SpatialWriting(spark, geoJsonFile, new FlattenSpatialParquet());
 
+                SpatialWriting wkbWriting = new SpatialWriting(spark, geoJsonFile, new WKBIndexedParquet());
+
                 String path = "../datasets/aubuildings/AUBuildingsndjson.geojson";
 
                 TableSpec bronze =
@@ -57,9 +60,19 @@ public class CreateAuBuildings {
                 TableSpec flattenSilverIndexed =
                         new TableSpec("flattenSilverIndexed", "aubuildings", folderpath);
 
+                TableSpec wkbUnindexed =
+                        new TableSpec("wkbUnindexed", "aubuildings", folderpath);
+
+                TableSpec wkbIndexed =
+                        new TableSpec("wkbIndexed", "aubuildings", folderpath);
+
                 long startTime = System.currentTimeMillis();
 
-                spatialWriting.bronzeLayerBinary(bronze, path);
+//                spatialWriting.bronzeLayerBinary(bronze, path);
+
+//                wkbWriting.silverLayerWithoutBboxIndexing(wkbUnindexed, path);
+
+                wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 150000L, 131072L);
 
 ////                spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path);
 //
