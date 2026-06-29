@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks.encoder.udf;
+package ir.smh.spatialbricks.udf;
 
 import org.locationtech.jts.geom.*;
 

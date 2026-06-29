@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks.encoder.udf;
+package ir.smh.spatialbricks.udf;
 
 import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
@@ -16,7 +16,7 @@ import java.util.*;
 
 import static org.apache.spark.sql.functions.*;
 
-public class SpatialParquet implements UDFRegistry, Serializable {
+public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>, Serializable {
 
     public SpatialParquet() {
     }

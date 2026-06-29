@@ -6,7 +6,7 @@ import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
-import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
+import ir.smh.spatialbricks.udf.FlattenSpatialParquet;
 
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
@@ -50,7 +50,7 @@ public class CreatePortoTaxiFromGeoJSON {
 
             String path ="../datasets/portotaxi2/portotaxindjson.geojson";
 
-          spatialWriting.bronzeLayerBinary(bronze, path);
+            spatialWriting.bronzeLayerBinary(bronze, path);
 
 //          spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 

@@ -4,8 +4,8 @@ import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
-import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
-import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
+import ir.smh.spatialbricks.udf.FlattenSpatialParquet;
+import ir.smh.spatialbricks.udf.SpatialParquet;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 

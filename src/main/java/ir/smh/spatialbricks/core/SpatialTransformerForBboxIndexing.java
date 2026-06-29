@@ -2,7 +2,7 @@ package ir.smh.spatialbricks.core;
 
 
 
-import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
+import ir.smh.spatialbricks.udf.UDFRegistry;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;

@@ -1,8 +1,8 @@
 package ir.smh.spatialbricks.core;
 
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
-import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
-import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
+import ir.smh.spatialbricks.udf.SpatialParquet;
+import ir.smh.spatialbricks.udf.UDFRegistry;
 import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
 import org.apache.spark.sql.Row;
 
@@ -10,7 +10,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
-import org.apache.spark.storage.StorageLevel;
 
 import java.io.Serializable;
 import java.util.Arrays;

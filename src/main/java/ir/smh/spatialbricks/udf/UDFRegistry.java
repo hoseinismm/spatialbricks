@@ -1,4 +1,4 @@
-package ir.smh.spatialbricks.encoder.udf;
+package ir.smh.spatialbricks.udf;
 
 import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
@@ -12,7 +12,7 @@ import org.locationtech.jts.geom.Geometry;
 
 import java.util.Map;
 
-public interface UDFRegistry {
+public interface UDFRegistry<T,U> {
     DataType getGeometryType();
     void registerGeometryUdf(SparkSession spark, GeometryReader adapter);
     void registerBucketUdf(SparkSession spark,
@@ -25,6 +25,6 @@ public interface UDFRegistry {
             String yColumn,
             String geometryColumnName
     );
-    Map<String, Object> parse(Geometry geometry);
-    Row geometryToRow(Geometry geometry);
+    U parse(Geometry geometry);
+    Row geometryToRow(T geometry);
 }

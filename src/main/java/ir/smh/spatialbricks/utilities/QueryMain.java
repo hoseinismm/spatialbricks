@@ -1,11 +1,9 @@
 package ir.smh.spatialbricks.utilities;
 
 
-import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
-import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
-import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
-import ir.smh.spatialbricks.encoder.udf.UDFRegistry;
+import ir.smh.spatialbricks.udf.SpatialParquet;
+import ir.smh.spatialbricks.udf.UDFRegistry;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;

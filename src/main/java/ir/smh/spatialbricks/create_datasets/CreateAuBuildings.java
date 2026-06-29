@@ -3,11 +3,10 @@ package ir.smh.spatialbricks.create_datasets;
 import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
-import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
-import ir.smh.spatialbricks.encoder.udf.FlattenSpatialParquet;
-import ir.smh.spatialbricks.encoder.udf.SpatialParquet;
+import ir.smh.spatialbricks.udf.FlattenSpatialParquet;
+import ir.smh.spatialbricks.udf.SpatialParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
@@ -60,19 +59,19 @@ public class CreateAuBuildings {
 
                 long startTime = System.currentTimeMillis();
 
-//                spatialWriting.bronzeLayerBinary(bronze, path);
+                spatialWriting.bronzeLayerBinary(bronze, path);
 
-//                spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path);
-
-//                spatialWriting.silverLayerWithBboxIndexing(
-//                        silverIndexed, path, 150000L, 131072L
-//                );
-
-//                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
+////                spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path);
 //
-                flattenSpatialWriting.silverLayerWithBboxIndexing(
-                        flattenSilverIndexed, path, 150000L, 131072L
-                );
+////                spatialWriting.silverLayerWithBboxIndexing(
+////                        silverIndexed, path, 150000L, 131072L
+////                );
+//
+////                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
+////
+//                flattenSpatialWriting.silverLayerWithBboxIndexing(
+//                        flattenSilverIndexed, path, 150000L, 131072L
+//                );
 
                 long duration = System.currentTimeMillis() - startTime;
 
