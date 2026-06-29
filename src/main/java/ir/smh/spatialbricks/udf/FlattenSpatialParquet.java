@@ -26,7 +26,7 @@ import java.util.Map;
 import static org.apache.spark.sql.functions.*;
 import static org.apache.spark.sql.functions.lit;
 
-public class FlattenSpatialParquet implements UDFRegistry<Geometry>, Serializable {
+public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>, Serializable {
 
     public FlattenSpatialParquet() {
     }

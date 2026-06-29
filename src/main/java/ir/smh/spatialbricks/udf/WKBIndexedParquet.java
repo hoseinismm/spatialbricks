@@ -341,7 +341,6 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
                         "createPointGeometry",
                         col(xColumn),
                         col(yColumn)
-                )
-        );
+                )).select(geometryColumnName);
     }
 }
