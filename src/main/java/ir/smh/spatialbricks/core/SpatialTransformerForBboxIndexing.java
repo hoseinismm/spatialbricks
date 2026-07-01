@@ -41,7 +41,6 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
                 jsc.broadcast(rootBucket);
 
         udfregistry.registerBucketUdf(
-                df.sparkSession(),
                 broadcastRootBuckets
         );
 

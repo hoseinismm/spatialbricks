@@ -31,7 +31,7 @@ public class CreatePortoTaxiFromChuncedParquetFiles {
 
         GeometryReader<?>  geoparqetFile= new WKBReaderAdapter();
 
-        UDFRegistry udfRegistry=new FlattenSpatialParquet();
+        UDFRegistry udfRegistry=new FlattenSpatialParquet(spark);
 
         SpatialWriting spatialWriting= new SpatialWriting(spark,geoparqetFile );
 
@@ -50,7 +50,7 @@ public class CreatePortoTaxiFromChuncedParquetFiles {
         for (int i=0; i<35; i++) {
             String path = String.format("../datasets/portotaxi/porto_taxi_chunk_%d.parquet", i);
 //          spatialWriting.silverLayerWithBboxIndexing(silverIndexed,path, 150000L, 131072L);
-            spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
+//          spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 //          flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path );//
 //          flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed,path, 150000L, 131072L);
         }

@@ -18,8 +18,8 @@ public class QueryMain {
         var spark = SparkConfigLocal.createSession("../datasets/aubuildings");
         spark.sparkContext().setLogLevel("ERROR");
         SedonaContext.create(spark);
-        UDFRegistry udfRegistry=new WKBIndexedParquet();
-        udfRegistry.registerDecode(spark);
+        UDFRegistry udfRegistry=new WKBIndexedParquet(spark);
+        udfRegistry.registerDecode();
         SedonaSQLRegistrator.registerAll(spark);
         spark.sql("""
                 SELECT

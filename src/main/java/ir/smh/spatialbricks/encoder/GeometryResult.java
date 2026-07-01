@@ -5,7 +5,9 @@ import org.locationtech.jts.geom.Envelope;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.StructType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import ch.hsr.geohash.GeoHash;
 
@@ -151,6 +153,27 @@ public class GeometryResult {
 
         return convertGeohashToInt(computeGeoHash(lon,lat));
 
+    }
+
+    public static Geometry lineFromMultiPoint(Geometry geometry) {
+        if (!(geometry instanceof MultiPoint)) {
+            return null;
+        } else {
+            List<Coordinate> coordinates = new ArrayList();
+            Coordinate[] var2 = geometry.getCoordinates();
+            int var3 = var2.length;
+
+            if (var3 < 2) {
+                return null;
+            }
+
+            for (int var4 = 0; var4 < var3; ++var4) {
+                Coordinate c = var2[var4];
+                coordinates.add(c);
+            }
+
+            return geometry.getFactory().createLineString((Coordinate[]) coordinates.toArray(new Coordinate[0]));
+        }
     }
 
 

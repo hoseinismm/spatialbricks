@@ -1,5 +1,6 @@
 package ir.smh.spatialbricks.test_queries;
 
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
@@ -38,6 +39,8 @@ public class aubuildings {
                 TableSpec silverIndexed = new TableSpec("silverIndexed", "aubuildings", "");
                 TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "aubuildings", "");
                 TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "aubuildings", "");
+                TableSpec wkbUnindexed = new TableSpec("wkbUnindexed", "aubuildings", "");
+                TableSpec wkbIndexed = new TableSpec("wkbIndexed", "aubuildings", "");
 
                 long[][] results = runBenchmarks(
                         spark,
@@ -46,7 +49,9 @@ public class aubuildings {
                         silverUnindexed,
                         silverIndexed,
                         flattenSilverUnindexed,
-                        flattenSilverIndexed
+                        flattenSilverIndexed,
+                        wkbUnindexed,
+                        wkbIndexed
                 );
 
             writeResults(results, runs);
@@ -78,25 +83,31 @@ public class aubuildings {
             TableSpec silverUnindexed,
             TableSpec silverIndexed,
             TableSpec flattenSilverUnindexed,
-            TableSpec flattenSilverIndexed
+            TableSpec flattenSilverIndexed,
+            TableSpec wkbUnindexed,
+            TableSpec wkbIndexed
             ) throws Exception {
 
-        long[][] results = new long[10][runs];
+        long[][] results = new long[12][runs];
 
         for (int i = 0; i < runs; i++) {
 
             System.out.println("Run " + (i + 1));
 
-            results[0][i] = testQueryInGeoParquet(spark, path);
-            results[1][i] = testQuery(spark, silverUnindexed,false,new SpatialParquet());
-            results[2][i] = testQuery(spark, silverIndexed, true, new SpatialParquet());
-            results[3][i] = testQuery(spark, flattenSilverUnindexed,false, new FlattenSpatialParquet() );
-            results[4][i] = testQuery(spark, flattenSilverIndexed, true, new FlattenSpatialParquet() );
-            results[5][i] = testDecodeForGeoparquet(spark, path);
-            results[6][i] = testDecode(spark, silverUnindexed, new SpatialParquet());
-            results[7][i] = testDecode(spark, silverIndexed, new SpatialParquet());
-            results[8][i] = testDecode(spark, flattenSilverUnindexed, new FlattenSpatialParquet());
-            results[9][i] = testDecode(spark, flattenSilverIndexed, new FlattenSpatialParquet());
+
+            results[0][i] = testQuery(spark, wkbUnindexed ,false,new WKBIndexedParquet(spark));
+            results[1][i] = testQuery(spark, wkbIndexed,true,new WKBIndexedParquet(spark));
+            results[2][i] =0;// testQuery(spark, silverUnindexed,false,new SpatialParquet(spark));
+            results[3][i] =0;// testQuery(spark, silverIndexed, true, new SpatialParquet(spark));
+            results[4][i] =0;// testQuery(spark, flattenSilverUnindexed,false, new FlattenSpatialParquet(spark) );
+            results[5][i] =0;// testQuery(spark, flattenSilverIndexed, true, new FlattenSpatialParquet(spark) );
+            results[6][i] = testDecode(spark, wkbUnindexed, new WKBIndexedParquet(spark));
+            results[7][i] = testDecode(spark, wkbIndexed, new WKBIndexedParquet(spark));
+            results[8][i] =0;// testDecode(spark, silverUnindexed, new SpatialParquet(spark));
+            results[9][i] =0;// testDecode(spark, silverIndexed, new SpatialParquet(spark));
+            results[10][i] =0;// testDecode(spark, flattenSilverUnindexed, new FlattenSpatialParquet(spark));
+            results[11][i] =0;// testDecode(spark, flattenSilverIndexed, new FlattenSpatialParquet(spark));
+
         }
 
         return results;
@@ -106,12 +117,14 @@ public class aubuildings {
             throws FileNotFoundException {
 
         String[] names = {
-                "GeoParquet",
+                "WKB Unindexed",
+                "WKB Indexed",
                 "Spatial Unindexed",
                 "Spatial Indexed",
                 "Flatten Unindexed",
                 "Flatten Indexed",
-                "GeoParquet",
+                "WKB Unindexed",
+                "WKB Indexed",
                 "Spatial Unindexed",
                 "Spatial Indexed",
                 "Flatten Unindexed",
@@ -119,7 +132,7 @@ public class aubuildings {
 
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark_for_aubuildings")) {
+        try (PrintWriter out = new PrintWriter("benchmark2_for_aubuildings.csv")) {
 
             out.print("Test");
 
@@ -179,7 +192,7 @@ public class aubuildings {
             TableSpec table,
             boolean indexed, UDFRegistry udfRegistry) throws IOException {
 
-        udfRegistry.registerDecode(spark);
+        udfRegistry.registerDecode();
 
 
         String bboxFilter = indexed
@@ -252,7 +265,7 @@ public class aubuildings {
 
         String fullName= table.database() + "." + table.table();
 
-        udfregistry.registerDecode(spark);
+        udfregistry.registerDecode();
 
         Dataset<Row> t = spark.read()
                 .format("iceberg")

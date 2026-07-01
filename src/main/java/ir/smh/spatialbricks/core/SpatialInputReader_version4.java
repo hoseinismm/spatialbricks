@@ -3,7 +3,6 @@ package ir.smh.spatialbricks.core;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -23,14 +22,14 @@ import org.wololo.jts2geojson.GeoJSONReader;
 import java.io.Serializable;
 import java.util.*;
 
-public class SpatialInputReader4 implements Serializable {
+public class SpatialInputReader_version4 implements Serializable {
 
     private final SparkSession spark;
 
     private static final ThreadLocal<GeoJSONReader> GEOJSON_READER =
             ThreadLocal.withInitial(GeoJSONReader::new);
 
-    public SpatialInputReader4(SparkSession spark) {
+    public SpatialInputReader_version4(SparkSession spark) {
         this.spark = spark;
     }
 

@@ -2,6 +2,7 @@ package ir.smh.spatialbricks.udf;
 
 import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.decoder.FlattenSpatialParquetDecoder;
+import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
 import ir.smh.spatialbricks.encoder.converttogeometry.*;
 import ir.smh.spatialbricks.encoder.GeometryResult;
 
@@ -28,7 +29,10 @@ import static org.apache.spark.sql.functions.lit;
 
 public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>, Serializable {
 
-    public FlattenSpatialParquet() {
+    SparkSession spark;
+
+    public FlattenSpatialParquet(SparkSession spark) {
+        this.spark = spark;
     }
 
     // =========================================================
@@ -75,7 +79,7 @@ public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, O
         return GEOMETRY_TYPE;
     }
 
-    public void registerGeometryUdf(SparkSession spark, GeometryReader adapter) {
+    public void registerGeometryUdf( GeometryReader<?> adapter) {
 
         UDF1<Object, Row> udf = (Object input) -> {
 
@@ -132,7 +136,7 @@ public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, O
     // 2) BBOX UDF
     // =========================================================
 
-    public void registerBboxUdf(SparkSession spark) {
+    public void registerBboxUdf() {
 
         spark.udf().register(
                 "calculateBbox",
@@ -154,8 +158,7 @@ public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, O
     // 3) BUCKET UDF
     // =========================================================
 
-    public void registerBucketUdf(SparkSession spark,
-                                  Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets) {
+    public void registerBucketUdf(Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets) {
         BucketManagerForBboxIndexing.Bucket root =
                 broadcastRootBuckets.value();
 
@@ -195,7 +198,11 @@ public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, O
     // DECODE UDF
     // =========================================================
 
-    public void registerDecode(SparkSession spark) {
+    public Geometry geometryToJTS(Row geoRow) {
+        return FlattenSpatialParquetDecoder.geometryToJTS(geoRow);
+    }
+
+    public void registerDecode() {
 
         spark.udf().register(
                 "decodeGeometry",
@@ -204,7 +211,7 @@ public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, O
         );
     }
 
-    public void registerAddGeohash(SparkSession spark) {
+    public void registerAddGeohash() {
 
         spark.udf().register(
                 "addgeohash",

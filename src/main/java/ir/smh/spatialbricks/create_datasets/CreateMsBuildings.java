@@ -1,6 +1,7 @@
 package ir.smh.spatialbricks.create_datasets;
 
 import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
@@ -11,6 +12,7 @@ import ir.smh.spatialbricks.udf.SpatialParquet;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
+import java.io.File;
 import java.io.IOException;
 
 public class CreateMsBuildings {
@@ -35,16 +37,22 @@ public class CreateMsBuildings {
 
                 GeometryReader<?> geoJsonFile = new geoJsonGeometricalAdapter();
 
+                SpatialWriting wkbWriting =
+                        new SpatialWriting(spark, geoJsonFile, new WKBIndexedParquet(spark));
+
                 SpatialWriting spatialWriting =
-                        new SpatialWriting(spark, geoJsonFile, new SpatialParquet());
+                        new SpatialWriting(spark, geoJsonFile, new SpatialParquet(spark));
 
                 SpatialWriting flattenSpatialWriting =
-                        new SpatialWriting(spark, geoJsonFile, new FlattenSpatialParquet());
+                        new SpatialWriting(spark, geoJsonFile, new FlattenSpatialParquet(spark));
 
                 String path = "../datasets/msbuildings/MSBuildingsndjson.geojson";
 
-                TableSpec bronze =
-                        new TableSpec("bronze", "msbuildings", folderpath);
+                TableSpec wkbUnindexed =
+                        new TableSpec("wkbUnindexed", "msbuildings", folderpath);
+
+                TableSpec wkbIndexed =
+                        new TableSpec("wkbIndexed", "msbuildings", folderpath);
 
                 TableSpec silverIndexed =
                         new TableSpec("silverIndexed", "msbuildings", folderpath);
@@ -60,19 +68,17 @@ public class CreateMsBuildings {
 
                 long startTime = System.currentTimeMillis();
 
-//                spatialWriting.bronzeLayerBinary(bronze, path);
+//                wkbWriting.silverLayerWithoutBboxIndexing(wkbUnindexed, path);
+
+//                wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 150000L, 1048576L);
 
 //                spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path);
 
-//                spatialWriting.silverLayerWithBboxIndexing(
-//                        silverIndexed, path, 150000L, 1048576L
-//                );
+//                spatialWriting.silverLayerWithBboxIndexing(silverIndexed, path, 150000L, 1048576L);
 
-                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
+//                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
 
-//                flattenSpatialWriting.silverLayerWithBboxIndexing(
-//                        flattenSilverIndexed, path, 150000L, 131072L
-//                );
+//                flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed, path, 150000L, 131072L);
 
                 long duration = System.currentTimeMillis() - startTime;
 

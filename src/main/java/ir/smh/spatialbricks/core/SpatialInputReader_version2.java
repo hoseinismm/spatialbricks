@@ -14,22 +14,55 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.locationtech.jts.geom.*;
-import org.locationtech.jts.io.geojson.GeoJsonReader;
 
 import java.io.Serializable;
 import java.util.*;
 
-public class SpatialInputReader implements Serializable {
+public class SpatialInputReader_version2 implements Serializable {
 
     private final SparkSession spark;
 
-    private static final ThreadLocal<GeoJsonReader> GEOJSON_READER =
-            ThreadLocal.withInitial(
-                    GeoJsonReader::new
-            );
-
-    public SpatialInputReader(SparkSession spark) {
+    public SpatialInputReader_version2(SparkSession spark) {
         this.spark = spark;
+    }
+
+    private Geometry buildGeometryFromGeoJsonNode(
+            JsonNode geometryNode)
+            throws Exception {
+
+        String type =
+                geometryNode.get("type").asText();
+
+        Object coordsObj =
+                parseCoordinates(
+                        geometryNode.get("coordinates")
+                );
+
+        return buildGeometryFromGeoJSON(
+                type,
+                coordsObj
+        );
+    }
+
+    private Object parseCoordinates(JsonNode node) {
+
+        if (node.isNumber()) {
+            return node.asDouble();
+        }
+
+        if (!node.isArray()) {
+            throw new IllegalArgumentException(
+                    "Invalid coordinates node: " + node
+            );
+        }
+
+        List<Object> list = new ArrayList<>(node.size());
+
+        for (JsonNode child : node) {
+            list.add(parseCoordinates(child));
+        }
+
+        return list;
     }
 
     private StructType inferPropertiesSchema(
@@ -213,11 +246,9 @@ public class SpatialInputReader implements Serializable {
 
                 // geometry
                 Geometry geometry =
-                        GEOJSON_READER
-                                .get()
-                                .read(
-                                        geometryNode.toString()
-                                );
+                        buildGeometryFromGeoJsonNode(
+                                geometryNode
+                        );
 
                 values.add(geometry);
 

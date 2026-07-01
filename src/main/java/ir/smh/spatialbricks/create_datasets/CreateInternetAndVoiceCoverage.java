@@ -1,6 +1,7 @@
 package ir.smh.spatialbricks.create_datasets;
 
 import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
@@ -36,22 +37,28 @@ public class CreateInternetAndVoiceCoverage {
 
         GeometryReader<?>  geoJsonFile= new geoJsonGeometricalAdapter();
 
-        SpatialWriting spatialWriting = new SpatialWriting(spark,geoJsonFile, new SpatialParquet());
+        SpatialWriting wkbWriting = new SpatialWriting(spark,geoJsonFile, new WKBIndexedParquet(spark)  );
 
-        SpatialWriting flattenSpatialWriting = new SpatialWriting(spark,geoJsonFile, new FlattenSpatialParquet()  );
+        SpatialWriting spatialWriting = new SpatialWriting(spark,geoJsonFile, new SpatialParquet(spark));
+
+        SpatialWriting flattenSpatialWriting = new SpatialWriting(spark,geoJsonFile, new FlattenSpatialParquet(spark)  );
 
         String path = String.format("../datasets/internet_and_voice_coverage/F477_Voice_1412b.geojson");
 
+        TableSpec wkbUnindexed = new TableSpec("wkbUnindexed", "internet_and_voice_coverage", folderpath);
+        TableSpec wkbIndexed = new TableSpec("wkbIndexed", "internet_and_voice_coverage", folderpath);
         TableSpec silverUnindexed = new TableSpec("silverUnindexed", "internet_and_voice_coverage", folderpath);
         TableSpec silverIndexed = new TableSpec("silverIndexed", "internet_and_voice_coverage", folderpath);
         TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "internet_and_voice_coverage", folderpath);
         TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "internet_and_voice_coverage", folderpath);
 
-        TableSpec bronze = new TableSpec("bronze", "internet_and_voice_coverage", "");
+
 
         long startTime = System.currentTimeMillis();
 
-          spatialWriting.bronzeLayerBinary(bronze, path );
+//          wkbWriting.silverLayerWithoutBboxIndexing(wkbUnindexed, path );
+
+//          wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 68L, 32L );
 
 //        spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 

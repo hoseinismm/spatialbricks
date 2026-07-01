@@ -1,5 +1,6 @@
 package ir.smh.spatialbricks.create_datasets;
 
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
@@ -30,63 +31,59 @@ public class CreateNYCtaxi {
 
         SedonaContext.create(spark);
 
-        SpatialWriting spatialWriting= new SpatialWriting(spark, null, new SpatialParquet());
+        SpatialWriting spatialWriting= new SpatialWriting(spark, null, new SpatialParquet(spark));
 
-        SpatialWriting flattenspatialwriting = new SpatialWriting(spark, null, new FlattenSpatialParquet());
+        SpatialWriting flattenspatialwriting = new SpatialWriting(spark, null, new FlattenSpatialParquet(spark));
 
-        TableSpec silverIndexed = new TableSpec("silverIndexed", "nyc_taxi", folderpath);
+        SpatialWriting wkbWriting = new SpatialWriting(spark, null, new WKBIndexedParquet(spark));
+
+
+        TableSpec wkbUnindexed = new TableSpec("wkbUnindexed", "nyc_taxi", folderpath);
+        TableSpec wkbIndexed = new TableSpec("wkbIndexed", "nyc_taxi", folderpath);
         TableSpec silverUnindexed = new TableSpec("silverUnindexed", "nyc_taxi", folderpath);
-        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "nyc_taxi", folderpath);
-        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "nyc_taxi",folderpath);
+        TableSpec silverIndexed = new TableSpec("silverIndexed", "nyc_taxi", folderpath);
+        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "nyc_taxi", folderpath);
+        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "nyc_taxi",folderpath);
         TableSpec Sorted = new TableSpec("Sorted", "nyc_taxi","");
 
         String path =   "../datasets/nyc_taxi/yellow_tripdata_2009-0?.parquet";
 
         long startTime = System.currentTimeMillis();
 
-//        spatialWriting.customWriter(silverIndexed,
-//                path,150000L, 131072L, "Start_Lon","Start_Lat"
-//        );
-//        spatialWriting.customWriter(silverIndexed,
-//                path,150000L, 131072L, "End_Lon","End_Lat"
-//        );
+//        wkbWriting.customWriterWithoutBboxIndex(wkbUnindexed,path, "Start_Lon","Start_Lat");
+//        wkbWriting.customWriterWithoutBboxIndex(wkbUnindexed,path, "End_Lon","End_Lat");
 
-//        spatialWriting.customWriterWithoutBboxIndex(silverUnindexed,
-//                path, "Start_Lon","Start_Lat"
-//        );
-//        spatialWriting.customWriterWithoutBboxIndex(silverUnindexed,
-//                path, "End_Lon","End_Lat"
-//        );
-//
-//        flattenspatialwriting.customWriter(flattenSilverIndexed,
-//                path,150000L, 131072L, "Start_Lon","Start_Lat"
-//        );
-//
-//        flattenspatialwriting.customWriter(flattenSilverIndexed,
-//                path,150000L, 131072L, "End_Lon","End_Lat"
-//        );
+//        wkbWriting.customWriter(wkbIndexed,path,150000L, 131072L, "Start_Lon","Start_Lat");
+//        wkbWriting.customWriter(wkbIndexed,path,150000L, 131072L, "End_Lon","End_Lat");
 
-//        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
-//                path, "Start_Lon","Start_Lat"
-//        );
-////
-//        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,
-//                path, "End_Lon","End_Lat"
-//        );
+
+//        spatialWriting.customWriter(silverIndexed,path,150000L, 131072L, "Start_Lon","Start_Lat");
+//        spatialWriting.customWriter(silverIndexed,path,150000L, 131072L, "End_Lon","End_Lat");
+
+//        spatialWriting.customWriterWithoutBboxIndex(silverUnindexed,path, "Start_Lon","Start_Lat");
+//        spatialWriting.customWriterWithoutBboxIndex(silverUnindexed,path, "End_Lon","End_Lat");
+//
+//        flattenspatialwriting.customWriter(flattenSilverIndexed,path,150000L, 131072L, "Start_Lon","Start_Lat");
+//
+//        flattenspatialwriting.customWriter(flattenSilverIndexed,path,150000L, 131072L, "End_Lon","End_Lat");
+
+//        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,path, "Start_Lon","Start_Lat");
+
+//        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,path, "End_Lon","End_Lat");
 
 //        FlattenSpatialParquet flattenSpatialParquet = new FlattenSpatialParquet();
 //        flattenSpatialParquet.registerAddGeohash(spark);
-//
+
 //        Dataset<Row> df=spark.read()
 //                .format("iceberg")
 //                .load("flattenSilverUnindexed.nyc_taxi")
 //                .withColumn("geohash", expr("addgeohash(geometry)"))
 //                .sort("geohash")
-//                .drop("geohash");////
+//                .drop("geohash");
 //        IcebergTableCreator.createIcebergTableFromSchema(spark,df.schema(),Sorted.database(),Sorted.table());
 //        String fullname=Sorted.database()+"."+Sorted.table();
 //        df.writeTo(fullname).append();
-////
+
 //        AddOrUpdateBboxIndex addOrUpdateBboxIndex=new AddOrUpdateBboxIndex(spark,flattenSpatialParquet);
 //        addOrUpdateBboxIndex.updateIndexing(flattenSilverUnindexed,150000L, 1048576L);
 

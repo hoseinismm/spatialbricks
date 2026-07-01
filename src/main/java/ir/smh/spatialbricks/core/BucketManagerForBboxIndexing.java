@@ -231,7 +231,7 @@ public class BucketManagerForBboxIndexing {
                 );
 
         udfRegistry.registerBboxUdf(
-                df.sparkSession()
+
         );
 
         Dataset<Row> bboxDf = df

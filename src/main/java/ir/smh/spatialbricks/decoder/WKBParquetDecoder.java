@@ -15,6 +15,10 @@ public class WKBParquetDecoder {
 
         byte[] wkb = (byte[]) row.get(0);
 
+        return wkbToJTS(wkb);
+    }
+
+    public static Geometry wkbToJTS(byte[] wkb) throws ParseException {
         return new WKBReader().read(wkb);
     }
 

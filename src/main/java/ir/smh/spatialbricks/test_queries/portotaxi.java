@@ -1,5 +1,7 @@
 package ir.smh.spatialbricks.test_queries;
 
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
+import ir.smh.spatialbricks.utilities.MultipointToLine;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfig;
@@ -8,6 +10,7 @@ import ir.smh.spatialbricks.udf.SpatialParquet;
 import ir.smh.spatialbricks.udf.UDFRegistry;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -20,36 +23,42 @@ import static org.apache.spark.sql.functions.*;
 
 public class portotaxi {
 
+    private  static final SparkSession spark = SparkConfig.createSession("../datasets/portotaxi");
+
+
+    private static final TableSpec wkbUnindexed =
+            new TableSpec("wkbUnindexed", "portotaxi", "");
+
+    private static final TableSpec wkbIndexed =
+            new TableSpec("wkbIndexed", "portotaxi", "");
+
+    private static final TableSpec silverUnindexed =
+            new TableSpec("silverUnindexed", "portotaxi", "");
+
+    private static final TableSpec silverIndexed =
+            new TableSpec("silverIndexed", "portotaxi", "");
+
+    private static final TableSpec flattenSilverUnindexed =
+            new TableSpec("flattenSilverUnindexed", "portotaxi", "");
+
+    private static final TableSpec flattenSilverIndexed =
+            new TableSpec("flattenSilverIndexed", "portotaxi", "");
     public static void main(String[] args) throws Exception {
 
         PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
 
         try {
 
-            final int runs = 10;
+            int runs = 10;
 
             SparkSession spark = createSpark();
 
             try {
 
-        String path = "../datasets/portotaxi/porto_taxi_chunk_*.parquet";
-
-        TableSpec silverUnindexed = new TableSpec("silverUnindexed", "portotaxi", "");
-        TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", "");
-        TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "portotaxi", "");
-        TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "portotaxi", "");
 
 
-        long[][] results = runBenchmarks(
-                spark,
-                runs,
-                path,
-                silverUnindexed,
-                silverIndexed,
-                flattenSilverUnindexed,
-                flattenSilverIndexed
 
-        );
+        long[][] results = runBenchmarks( spark, runs);
 
         writeResults(results, runs);
 
@@ -64,7 +73,7 @@ public class portotaxi {
 
     private static SparkSession createSpark() {
 
-        SparkSession spark = SparkConfig.createSession("../datasets/portotaxi");
+        SparkSession spark = SparkConfig.createSession("../datasets/portotaxi2");
 
         SedonaContext.create(spark);
         SedonaSQLRegistrator.registerAll(spark);
@@ -74,32 +83,28 @@ public class portotaxi {
 
     private static long[][] runBenchmarks(
             SparkSession spark,
-            int runs,
-            String path,
-            TableSpec silverUnindexed,
-            TableSpec silverIndexed,
-            TableSpec flattenSilverUnindexed,
-            TableSpec flattenSilverIndexed
+            int runs
             ) throws Exception {
 
-        long[][] results = new long[10][runs];
+        long[][] results = new long[12][runs];
 
         for (int i = 0; i < runs; i++) {
 
             System.out.println("Run " + (i + 1));
 
-            results[0][i] = testSpeedGeoParquet(spark, path);
-            results[1][i] = testSpeedBboxIndexed(spark, silverIndexed);
-            results[2][i] = testSpeedBboxUnindexed(spark, silverUnindexed);
-            results[3][i] = testSpeedFlattenBboxIndexed(spark, flattenSilverIndexed);
-            results[4][i] = testSpeedFlattenBboxUnindexed(spark, flattenSilverUnindexed);
-            results[5][i] = testConvertionToGeometryForGeoparquet(spark, path);
-            results[6][i] = testConvertionToGeometryForSpatialParquet(spark, silverUnindexed);
-            results[7][i] = testConvertionToGeometryForSpatialParquet(spark, silverIndexed);
-            results[8][i] = testConvertionToGeometryForFlattenSpatialParquet(spark,flattenSilverUnindexed);
-            results[9][i] = testConvertionToGeometryForFlattenSpatialParquet(spark,flattenSilverIndexed);
+            results[0][i] = testSpeedIndexed(wkbUnindexed, new WKBIndexedParquet(spark), false);
+            results[1][i] = testSpeedIndexed(wkbIndexed, new WKBIndexedParquet(spark), true);
+            results[2][i] = testSpeedIndexed(silverUnindexed, new SpatialParquet(spark), false);
+            results[3][i] = testSpeedIndexed(silverIndexed, new SpatialParquet(spark), true);
+            results[4][i] = testSpeedIndexed(flattenSilverUnindexed, new FlattenSpatialParquet(spark), false);
+            results[5][i] = testSpeedIndexed(flattenSilverIndexed, new FlattenSpatialParquet(spark), true);
+            results[6][i] = testConvertionToGeometry(wkbUnindexed,new WKBIndexedParquet(spark));
+            results[7][i] = testConvertionToGeometry(wkbIndexed,new WKBIndexedParquet(spark));
+            results[8][i] = testConvertionToGeometry(silverUnindexed,new SpatialParquet(spark));
+            results[9][i] = testConvertionToGeometry(silverIndexed,new SpatialParquet(spark));
+            results[10][i] = testConvertionToGeometry(flattenSilverUnindexed,new FlattenSpatialParquet(spark));
+            results[11][i] = testConvertionToGeometry(flattenSilverIndexed,new FlattenSpatialParquet(spark));
         }
-
         return results;
     }
 
@@ -107,19 +112,21 @@ public class portotaxi {
             throws FileNotFoundException {
 
         String[] names = {
-                "GeoParquet",
+                "WKB Unindexed",
+                "WKB Indexed",
                 "Spatial Unindexed",
                 "Spatial Indexed",
                 "Flatten Unindexed",
                 "Flatten Indexed",
-                "GeoParquet",
+                "WKB Unindexed",
+                "WKB Indexed",
                 "Spatial Unindexed",
                 "Spatial Indexed",
                 "Flatten Unindexed",
                 "Flatten Indexed"
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmarkporto2.csv")) {
 
             out.print("Test");
 
@@ -142,299 +149,112 @@ public class portotaxi {
         }
     }
 
-    public static long testSpeedGeoParquet(SparkSession spark, String path) throws NoSuchTableException {
+    public static long testSpeedIndexed( TableSpec silver, UDFRegistry<?,?> udfRegistry, boolean indexed) throws Exception {
 
-            String table = "a.b";
-//          ایجاد یک جدول برای فیتر ردیفهای کمتر از دو نقطه چون بدون ذخیره سازی جواب نمیداد
-//            Dataset<Row> t1 = spark.read()
-//                    .parquet(path)
-//                    .withColumn("geom", expr("ST_GeomFromWKB(geometry)"))
-//                    .filter(expr("ST_NumGeometries(geom) >= 2"))
-//                    .withColumn("geom", expr("ST_AsBinary(geom)"))
-
-//                    .select("geom");
-//
-//            IcebergTableCreator.createIcebergTableFromSchema(
-//                    spark,  t1.schema(), "a", "b"
-//            );
-//            System.out.println("table is created");
-//
-//            t1.writeTo(table).append();
-//            System.out.println("data appended");
-//
-
-        long start = System.currentTimeMillis();
-
-            Dataset<Row> t2 = spark.read()
-                    .format("iceberg")
-                    .load(table)
-                    .withColumn("geom", expr("ST_GeomFromWKB(geom)"));
-
-            t2.createOrReplaceTempView("table");
-
-
-
-            spark.sql("""
-            WITH g AS (
-                            SELECT
-                                ST_LineFromMultiPoint(geom) AS line
-                            FROM table
-                        )
-                        SELECT COUNT(*)
-                        FROM g
-                        WHERE
-                            ST_X(ST_PointN(line, 1)) BETWEEN -8.62 AND -8.56
-                        AND ST_Y(ST_PointN(line, 1)) BETWEEN 41.15 AND 41.19
-                        AND ST_Length(line) > 0.1;
-        """).show(false);
-
-        System.out.println("Querying from geoparquet file time = " + (System.currentTimeMillis() - start));
-        return  (System.currentTimeMillis() - start);
-    }
-
-    public static long testSpeedBboxUnindexed(SparkSession spark, TableSpec silver) throws Exception {
-
-        UDFRegistry udfRegistry= new SpatialParquet();
-        udfRegistry.registerDecode(spark);
+        new MultipointToLine(spark, udfRegistry).registerLineFromMultiPoint();
 
         String fullName = silver.database() + "." + silver.table();
 
         long start = System.currentTimeMillis();
 
-        Dataset<Row> t1 = spark.read()
+        Column filter = callUDF("ST_X", callUDF("ST_PointN", col("geom"), lit(1))).between(-8.62, -8.56)
+                .and(callUDF("ST_Y", callUDF("ST_PointN", col("geom"), lit(1))).between(41.15, 41.19))
+                .and(callUDF("ST_Length", col("geom")).gt(0.1));
+
+        if (indexed) {
+            filter = filter
+                    .and(col("geometry.bbox_partitioning.min_x").lt(-8.56))
+                    .and(col("geometry.bbox_partitioning.max_x").gt(-8.62))
+                    .and(col("geometry.bbox_partitioning.min_y").lt(41.19))
+                    .and(col("geometry.bbox_partitioning.max_y").gt(41.15));
+        }
+
+        Dataset<Row> result = spark.read()
                 .format("iceberg")
                 .load(fullName)
-                .filter(expr("size(geometry.parts) >= 2"))
-                .withColumn("geom", callUDF("decodeGeometry", col("geometry")))
-                .withColumn("geom",  expr("ST_LineFromMultiPoint(geom)"));
+                .withColumn("geom", callUDF("multiPointToLine", col("geometry")))
+                .filter(filter)
+                .agg(count("*").alias("number"));
 
-        t1.createOrReplaceTempView("table");
-
-        spark.sql("""
-                SELECT
-                    COUNT(*) AS number
-                FROM table
-                WHERE
-                      (
-                      geometry.parts[0].coordinates[0].x BETWEEN -8.62 AND -8.56
-                      AND
-                      geometry.parts[0].coordinates[0].y BETWEEN 41.15 AND 41.19
-                      )
-                AND
-                  ST_Length(geom) > 0.1
-                """).show(false);
+        result.show(false);
 
         long duration = System.currentTimeMillis() - start;
 
         System.out.println("Querying from  table " +fullName+" in iceberg = "+ duration);
 
-        return  (System.currentTimeMillis() - start);
+        return  duration;
     }
 
-    public static long testSpeedBboxIndexed(SparkSession spark, TableSpec silver) throws Exception {
+    public static long testSpeedIndexed2(TableSpec silver, UDFRegistry<?,?> udfRegistry, boolean indexed) throws Exception {
 
-        UDFRegistry udfRegistry= new SpatialParquet();
-        udfRegistry.registerDecode(spark);
+        new MultipointToLine(spark, udfRegistry).registerLineFromMultiPoint();
 
         String fullName = silver.database() + "." + silver.table();
 
         long start = System.currentTimeMillis();
 
-        Dataset<Row> t1 = spark.read()
+        Dataset<Row> result = spark.read()
                 .format("iceberg")
-                .load(fullName)
-                .filter(expr("size(geometry.parts) >= 2"))
-                .withColumn("geom", callUDF("decodeGeometry", col("geometry")))
-                .withColumn("geom",  expr("ST_LineFromMultiPoint(geom)"));
+                .load(fullName);
 
-        t1.createOrReplaceTempView("table");
+        if (indexed) {
+            result = result.filter(
+                    col("geometry.bbox_partitioning.min_x").lt(-8.56)
+                            .and(col("geometry.bbox_partitioning.max_x").gt(-8.62))
+                            .and(col("geometry.bbox_partitioning.min_y").lt(41.19))
+                            .and(col("geometry.bbox_partitioning.max_y").gt(41.15))
+            );
 
-        spark.sql("""
-                SELECT
-                    COUNT(*) AS number
-                FROM table
-                WHERE
-                      (
-                      geometry.parts[0].coordinates[0].x BETWEEN -8.62 AND -8.56
-                      AND
-                      geometry.parts[0].coordinates[0].y BETWEEN 41.15 AND 41.19
-                      )
-                AND
-                      (
-                      geometry.bbox_partitioning.min_x < -8.56 AND
-                      geometry.bbox_partitioning.max_x > -8.62 AND
-                      geometry.bbox_partitioning.min_y < 41.19 AND
-                      geometry.bbox_partitioning.max_y > 41.15
-                      )
-                AND
-                  ST_Length(geom) > 0.1
-                """).show(false);
-
-        long duration = System.currentTimeMillis() - start;
-
-        System.out.println("Querying from  table " +fullName+" in iceberg = "+ duration);
-
-        return  (System.currentTimeMillis() - start);
-    }
-
-    public static long testSpeedFlattenBboxIndexed(SparkSession spark, TableSpec silver) throws Exception {
-
-        UDFRegistry udfRegistry= new FlattenSpatialParquet();
-        udfRegistry.registerDecode(spark);
-
-        String fullName = silver.database() + "." + silver.table();
-
-        long start = System.currentTimeMillis();
-
-        Dataset<Row> t1 = spark.read()
-                .format("iceberg")
-                .load(fullName)
-                .filter(expr("size(geometry.x) >= 2"))
-                .withColumn("geom", callUDF("decodeGeometry", col("geometry")))
-                .withColumn("geom",  expr("ST_LineFromMultiPoint(geom)"));
-
-        t1.createOrReplaceTempView("table");
-
-        spark.sql("""
-                SELECT
-                    COUNT(*) AS number
-                FROM table
-                WHERE
-                      (
-                      geometry.x[0] BETWEEN -8.62 AND -8.56
-                      AND
-                      geometry.y[0] BETWEEN 41.15 AND 41.19
-                      )
-                AND
-                      (
-                      geometry.bbox_partitioning.min_x < -8.56 AND
-                      geometry.bbox_partitioning.max_x > -8.62 AND
-                      geometry.bbox_partitioning.min_y < 41.19 AND
-                      geometry.bbox_partitioning.max_y > 41.15
-                      )
-                AND
-                  ST_Length(geom) > 0.1
-                """).show(false);
-
-        long duration = System.currentTimeMillis() - start;
-
-        System.out.println("Querying from  table " +fullName+" in iceberg = "+ duration);
-
-        return  (System.currentTimeMillis() - start);
-    }
-
-    public static long testSpeedFlattenBboxUnindexed(SparkSession spark, TableSpec silver) throws Exception {
-
-        UDFRegistry udfRegistry= new FlattenSpatialParquet();
-        udfRegistry.registerDecode(spark);
-
-        String fullName = silver.database() + "." + silver.table();
-
-        long start = System.currentTimeMillis();
-
-        Dataset<Row> t1 = spark.read()
-                .format("iceberg")
-                .load(fullName)
-                .filter(expr("size(geometry.x) >= 2"))
-                .withColumn("geom", callUDF("decodeGeometry", col("geometry")))
-                .withColumn("geom",  expr("ST_LineFromMultiPoint(geom)"));
-
-        t1.createOrReplaceTempView("table");
-
-        spark.sql("""
-                SELECT
-                    COUNT(*) AS number
-                FROM table
-                WHERE
-                      (
-                      geometry.x[0] BETWEEN -8.62 AND -8.56
-                      AND
-                      geometry.y[0] BETWEEN 41.15 AND 41.19
-                      )
-                AND
-                  ST_Length(geom) > 0.1
-                """).show(false);
-
-        long duration = System.currentTimeMillis() - start;
-
-        System.out.println("Querying from  table " +fullName+" in iceberg = "+ duration);
-
-        return  (System.currentTimeMillis() - start);
-    }
-
-    public static long testConvertionToGeometryForSpatialParquet(SparkSession spark, TableSpec silver) throws Exception {
-
-        UDFRegistry udfRegistry= new SpatialParquet();
-        udfRegistry.registerDecode(spark);
-
-        String fullName = silver.database() + "." + silver.table();
-
-        long start = System.currentTimeMillis();
-
-        Dataset<Row> t = spark.read()
-                .format("iceberg")
-                .load(fullName).withColumn(
-                        "geom",
-                        expr("decodeGeometry(geometry)")
-                );
-
-        t.selectExpr(
-                "ST_Distance(ST_GeometryN(geom, 0), ST_GeometryN(geom, ST_NumGeometries(geom)-1)) AS dist"
+        result = result
+                .withColumn("geom", callUDF("multiPointToLine", col("geometry")))
+                .filter(
+                        callUDF("ST_X", callUDF("ST_PointN", col("geom"), lit(1))).between(-8.62, -8.56)
+                                .and(callUDF("ST_Y", callUDF("ST_PointN", col("geom"), lit(1))).between(41.15, 41.19))
+                                .and(callUDF("ST_Length", col("geom")).gt(0.1))
                 )
-                .agg(expr("avg(dist)"))
+                .agg(count("*").alias("number"));
+        }
+        result.show(false);
+
+        long duration = System.currentTimeMillis() - start;
+
+        System.out.println("Querying from  table " +fullName+" in iceberg = "+ duration);
+
+        return  duration;
+    }
+
+    public static long testConvertionToGeometry(TableSpec silver, UDFRegistry<?,?> udfRegistry) throws Exception {
+
+        udfRegistry.registerDecode();
+
+        String fullName = silver.database() + "." + silver.table();
+
+        long start = System.currentTimeMillis();
+
+        spark.read()
+                .format("iceberg")
+                .load(fullName)
+                .withColumn("geom", callUDF("decodeGeometry", col("geometry")))
+                .select(
+                        callUDF(
+                                "ST_Distance",
+                                callUDF("ST_GeometryN", col("geom"), lit(0)),
+                                callUDF(
+                                        "ST_GeometryN",
+                                        col("geom"),
+                                        callUDF("ST_NumGeometries", col("geom")).minus(lit(1))
+                                )
+                        ).alias("dist")
+                )
+                .agg(avg("dist"))
                 .show();
         System.out.println("Iceberg"+fullName+" decode time = " + (System.currentTimeMillis() - start));
-        return  (System.currentTimeMillis() - start);
-    }
 
-    public static long testConvertionToGeometryForFlattenSpatialParquet(SparkSession spark, TableSpec silver) throws Exception {
+        long duration = System.currentTimeMillis() - start;
 
-        UDFRegistry udfRegistry= new FlattenSpatialParquet();
-        udfRegistry.registerDecode(spark);
-
-        String fullName = silver.database() + "." + silver.table();
-
-        long start = System.currentTimeMillis();
-
-        Dataset<Row> t = spark.read()
-                .format("iceberg")
-                .load(fullName).withColumn(
-                        "geom",
-                        expr("decodeGeometry(geometry)")
-                );
-
-        t.selectExpr(
-                        "ST_Distance(ST_GeometryN(geom, 0), ST_GeometryN(geom, ST_NumGeometries(geom)-1)) AS dist"
-                )
-                .agg(expr("avg(dist)"))
-                .show();
-        System.out.println("Iceberg"+fullName+" decode time = " + (System.currentTimeMillis() - start));
-        return  (System.currentTimeMillis() - start);
-    }
-
-    public static long testConvertionToGeometryForGeoparquet(SparkSession spark, String path) throws Exception {
-
-        long start = System.currentTimeMillis();
-
-        Dataset<Row> t = spark.read()
-                .parquet(path)
-                .withColumn("geom", expr("ST_GeomFromWKB(geometry)"));
-
-        Dataset<Row> bigger = t;
-
-        t.selectExpr(
-                        "ST_Distance(ST_GeometryN(geom, 0), ST_GeometryN(geom, ST_NumGeometries(geom)-1)) AS dist"
-                )
-                .agg(expr("avg(dist)"))
-                .show();
-
-
-        System.out.println(
-                "GeoParquet decode time = "
-                        + (System.currentTimeMillis() - start));
-        return  (System.currentTimeMillis() - start);
-
+        return  duration;
     }
 }
+
 
 

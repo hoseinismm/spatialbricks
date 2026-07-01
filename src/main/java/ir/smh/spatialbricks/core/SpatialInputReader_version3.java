@@ -10,12 +10,12 @@ import org.apache.spark.sql.SparkSession;
 
 
 
-public class SpatialInputReader3 {
+public class SpatialInputReader_version3 {
 
     private final SparkSession spark;
 
 
-    public SpatialInputReader3(SparkSession spark) {
+    public SpatialInputReader_version3(SparkSession spark) {
         this.spark = spark;
     }
 

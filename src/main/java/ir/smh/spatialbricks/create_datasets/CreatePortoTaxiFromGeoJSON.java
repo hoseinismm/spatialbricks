@@ -1,6 +1,7 @@
 package ir.smh.spatialbricks.create_datasets;
 
 import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
@@ -32,15 +33,19 @@ public class CreatePortoTaxiFromGeoJSON {
 
         GeometryReader<?>  geoparqetFile= new geoJsonGeometricalAdapter();
 
+        SpatialWriting wkbSpatialWriting= new SpatialWriting(spark,geoparqetFile, new WKBIndexedParquet(spark) );
+
         SpatialWriting spatialWriting= new SpatialWriting(spark,geoparqetFile );
 
-        SpatialWriting flattenSpatialWriting= new SpatialWriting(spark,geoparqetFile, new FlattenSpatialParquet());
+        SpatialWriting flattenSpatialWriting= new SpatialWriting(spark,geoparqetFile, new FlattenSpatialParquet(spark));
 
-        TableSpec bronze = new TableSpec("bronze", "portotaxi", folderpath);
+        TableSpec wkbUnindexed = new TableSpec("wkbUnindexed", "portotaxi", folderpath);
+
+        TableSpec wkbIndexed = new TableSpec("wkbIndexed", "portotaxi", folderpath);
 
         TableSpec silverUnindexed = new TableSpec("silverUnindexed", "portotaxi", folderpath);
 
-         TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", folderpath);
+        TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", folderpath);
 
         TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "portotaxi", folderpath);
 
@@ -50,7 +55,9 @@ public class CreatePortoTaxiFromGeoJSON {
 
             String path ="../datasets/portotaxi2/portotaxindjson.geojson";
 
-            spatialWriting.bronzeLayerBinary(bronze, path);
+//          wkbSpatialWriting.silverLayerWithoutBboxIndexing(wkbUnindexed, path );
+
+//          wkbSpatialWriting.silverLayerWithBboxIndexing(wkbIndexed,path, 150000L, 131072L);
 
 //          spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 

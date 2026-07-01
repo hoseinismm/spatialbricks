@@ -18,9 +18,9 @@ public class AddOrUpdateBboxIndex {
 
     private final SparkSession spark;
     private final BucketServiceForBboxIndexing bucketService;
-    private  UDFRegistry udfRegistry;
+    private final  UDFRegistry<?,?> udfRegistry;
 
-    public AddOrUpdateBboxIndex(SparkSession spark, UDFRegistry udfRegistry) {
+    public AddOrUpdateBboxIndex(SparkSession spark, UDFRegistry<?,?> udfRegistry) {
         this.spark = spark;
         this.bucketService = new BucketServiceForBboxIndexing(spark);
         this.udfRegistry = udfRegistry;
@@ -34,7 +34,7 @@ public class AddOrUpdateBboxIndex {
 
         String fullName = getFullName(silver);
 
-        if (!tableExists(fullName)) {
+        if (tableExists(fullName)) {
             return;
         }
 
@@ -75,7 +75,7 @@ public class AddOrUpdateBboxIndex {
 
         String fullName = getFullName(silver);
 
-        if (!tableExists(fullName)) {
+        if (tableExists(fullName)) {
             return;
         }
 
@@ -135,7 +135,6 @@ public class AddOrUpdateBboxIndex {
                 jsc.broadcast(bucket);
 
         udfRegistry.registerBucketUdf(
-                spark,
                 broadcastRootBuckets
         );
 
@@ -168,9 +167,9 @@ public class AddOrUpdateBboxIndex {
     private boolean tableExists(String fullName) {
         if (!spark.catalog().tableExists(fullName)) {
             System.out.println("table " + fullName + " does not exist");
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
     private String getFullName(TableSpec silver) {

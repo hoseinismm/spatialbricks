@@ -10,15 +10,20 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.sedona_sql.UDT.GeometryUDT$;
 import org.apache.spark.sql.types.*;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKBReader;
 
 import java.io.Serializable;
 import java.util.*;
 
+import static ir.smh.spatialbricks.encoder.GeometryResult.lineFromMultiPoint;
 import static org.apache.spark.sql.functions.*;
 
 public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>, Serializable {
+    SparkSession spark;
 
-    public SpatialParquet() {
+    public SpatialParquet(SparkSession spark) {
+        this.spark = spark;
     }
 
     public Map<String, Object> parse(Geometry geometry) {
@@ -67,7 +72,7 @@ public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>
         return GEOMETRY_TYPE;
     }
 
-    public void registerGeometryUdf(SparkSession spark, GeometryReader adapter) {
+    public void registerGeometryUdf( GeometryReader<?> adapter) {
 
         UDF1<Object, Row> udf = (Object input) -> {
 
@@ -157,7 +162,7 @@ public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>
     // 2) BBOX UDF
     // =========================================================
 
-    public void registerBboxUdf(SparkSession spark) {
+    public void registerBboxUdf() {
 
         spark.udf().register(
                 "calculateBbox",
@@ -184,7 +189,7 @@ public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>
     // 3) BUCKET UDF
     // =========================================================
 
-    public void registerBucketUdf(SparkSession spark,
+    public void registerBucketUdf(
                                   Broadcast<BucketManagerForBboxIndexing.Bucket> broadcast) {
 
         BucketManagerForBboxIndexing.Bucket root = broadcast.value();
@@ -214,11 +219,17 @@ public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>
         );
     }
 
+    public Geometry geometryToJTS(Row geoRow) {
+        return SpatialParquetDecoder.geometryToJTS(geoRow);
+    }
+
+
+
     // =========================================================
     // DECODE UDF
     // =========================================================
 
-    public void registerDecode(SparkSession spark) {
+    public void registerDecode() {
 
         spark.udf().register(
                 "decodeGeometry",

@@ -36,17 +36,14 @@ public class CreateAuBuildings {
                 GeometryReader<?> geoJsonFile = new geoJsonGeometricalAdapter();
 
                 SpatialWriting spatialWriting =
-                        new SpatialWriting(spark, geoJsonFile, new SpatialParquet());
+                        new SpatialWriting(spark, geoJsonFile, new SpatialParquet(spark));
 
                 SpatialWriting flattenSpatialWriting =
-                        new SpatialWriting(spark, geoJsonFile, new FlattenSpatialParquet());
+                        new SpatialWriting(spark, geoJsonFile, new FlattenSpatialParquet(spark));
 
-                SpatialWriting wkbWriting = new SpatialWriting(spark, geoJsonFile, new WKBIndexedParquet());
+                SpatialWriting wkbWriting = new SpatialWriting(spark, geoJsonFile, new WKBIndexedParquet(spark));
 
                 String path = "../datasets/aubuildings/AUBuildingsndjson.geojson";
-
-                TableSpec bronze =
-                        new TableSpec("bronze", "aubuildings", folderpath);
 
                 TableSpec silverIndexed =
                         new TableSpec("silverIndexed", "aubuildings", folderpath);
@@ -72,19 +69,15 @@ public class CreateAuBuildings {
 
 //                wkbWriting.silverLayerWithoutBboxIndexing(wkbUnindexed, path);
 
-                wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 150000L, 131072L);
+//                wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 150000L, 131072L);
 
-////                spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path);
-//
-////                spatialWriting.silverLayerWithBboxIndexing(
-////                        silverIndexed, path, 150000L, 131072L
-////                );
-//
-////                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
-////
-//                flattenSpatialWriting.silverLayerWithBboxIndexing(
-//                        flattenSilverIndexed, path, 150000L, 131072L
-//                );
+//                spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path);
+
+//                spatialWriting.silverLayerWithBboxIndexing(silverIndexed, path, 150000L, 131072L);
+
+//                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
+
+//                flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed, path, 150000L, 131072L);
 
                 long duration = System.currentTimeMillis() - startTime;
 

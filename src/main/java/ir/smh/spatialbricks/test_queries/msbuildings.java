@@ -1,5 +1,7 @@
 package ir.smh.spatialbricks.test_queries;
 
+import ir.smh.spatialbricks.config.SparkConfig;
+import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
@@ -20,37 +22,52 @@ import static org.apache.spark.sql.functions.expr;
 
 public class msbuildings {
 
-    public static void main(String[] args) throws Exception {
 
-        PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
+    private  static final SparkSession spark =  SparkConfigLocal.createSession("../datasets/msbuildings");
+
+    private static final UDFRegistry<?, ?> wkbRegistry =
+            new WKBIndexedParquet(spark);
+
+    private static final UDFRegistry<?, ?> spatialRegistry =
+            new SpatialParquet(spark);
+
+    private static final UDFRegistry<?, ?> flattenRegistry =
+            new FlattenSpatialParquet(spark);
+
+
+    private static final TableSpec wkbUnindexed =
+            new TableSpec("wkbUnindexed", "msbuildings", "");
+
+    private static final TableSpec wkbIndexed =
+            new TableSpec("wkbIndexed", "msbuildings", "");
+
+    private static final TableSpec silverUnindexed =
+            new TableSpec("silverUnindexed", "msbuildings", "");
+
+    private static final TableSpec silverIndexed =
+            new TableSpec("silverIndexed", "msbuildings", "");
+
+    private static final TableSpec flattenSilverUnindexed =
+            new TableSpec("flattenSilverUnindexed", "msbuildings", "");
+
+    private static final TableSpec flattenSilverIndexed =
+            new TableSpec("flattenSilverIndexed", "msbuildings", "");
+
+    public static void main(String[] args) throws Exception {
 
         try {
 
-            final int runs = 7;
-
-            SparkSession spark = createSpark();
+            PowerPlanUtil.setPowerPlan(PowerPlanUtil.SPARK_TEST);
+            final int runs = 6;
 
             try {
 
-                String path = "../datasets/msbuildings/bronze/msbuildings/output_geoparquet/*.parquet";
+                SedonaContext.create(spark);
+                SedonaSQLRegistrator.registerAll(spark);
 
-                TableSpec silverUnindexed = new TableSpec("silverUnindexed", "msbuildings", "");
-                TableSpec silverIndexed = new TableSpec("silverIndexed", "msbuildings", "");
-                TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "msbuildings", "");
-                TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "msbuildings", "");
+                long[][] results = runBenchmarks( runs );
 
-                long[][] results = runBenchmarks(
-                        spark,
-                        runs,
-                        path,
-                        silverUnindexed,
-                        silverIndexed,
-                        flattenSilverUnindexed,
-                        flattenSilverIndexed
-
-                );
-
-            writeResults(results, runs);
+                writeResults(results, runs);
 
             }   finally {
                 spark.stop();
@@ -61,43 +78,26 @@ public class msbuildings {
         }
     }
 
-    private static SparkSession createSpark() {
+    private static long[][] runBenchmarks( int runs ) throws Exception {
 
-        SparkSession spark =
-                SparkConfigLocal.createSession("../datasets/msbuildings");
-
-        SedonaContext.create(spark);
-        SedonaSQLRegistrator.registerAll(spark);
-
-        return spark;
-    }
-
-    private static long[][] runBenchmarks(
-            SparkSession spark,
-            int runs,
-            String path,
-            TableSpec silverUnindexed,
-            TableSpec silverIndexed,
-            TableSpec flattenSilverUnindexed,
-            TableSpec flattenSilverIndexed
-            ) throws Exception {
-
-        long[][] results = new long[10][runs];
+        long[][] results = new long[12][runs];
 
         for (int i = 0; i < runs; i++) {
 
             System.out.println("Run " + (i + 1));
 
-            results[0][i] = testQueryInGeoParquet(spark, path);
-            results[1][i] = testQuery(spark, silverUnindexed,false,new SpatialParquet());
-            results[2][i] = testQuery(spark, silverIndexed, true, new SpatialParquet());
-            results[3][i] = testQuery(spark, flattenSilverUnindexed,false, new FlattenSpatialParquet() );
-            results[4][i] = testQuery(spark, flattenSilverIndexed, true, new FlattenSpatialParquet() );
-            results[5][i] = testDecodeForGeoparquet(spark, path);
-            results[6][i] = testDecode(spark, silverUnindexed, new SpatialParquet());
-            results[7][i] = testDecode(spark, silverIndexed, new SpatialParquet());
-            results[8][i] = testDecode(spark, flattenSilverUnindexed, new FlattenSpatialParquet());
-            results[9][i] = testDecode(spark, flattenSilverIndexed, new FlattenSpatialParquet());
+            results[0][i] = testQuery(wkbUnindexed,false,wkbRegistry);
+            results[1][i] = testQuery( wkbIndexed, true, wkbRegistry);
+            results[2][i] =0;// testQuery( silverUnindexed,false,spatialRegistry);
+            results[3][i] =0;// testQuery( silverIndexed, true, spatialRegistry);
+            results[4][i] =0;// testQuery( flattenSilverUnindexed,false, flattenRegistry);
+            results[5][i] =0;// testQuery( flattenSilverIndexed, true, flattenRegistry);
+            results[6][i] = testDecode( wkbUnindexed, wkbRegistry);
+            results[7][i] = testDecode( wkbIndexed,wkbRegistry);
+            results[8][i] =0;// testDecode( silverUnindexed, spatialRegistry);
+            results[9][i] =0;// testDecode( silverIndexed, spatialRegistry);
+            results[10][i] =0;// testDecode( flattenSilverUnindexed, flattenRegistry);
+            results[11][i] =0;// testDecode( flattenSilverIndexed, flattenRegistry);
         }
 
         return results;
@@ -107,20 +107,21 @@ public class msbuildings {
             throws FileNotFoundException {
 
         String[] names = {
-                "GeoParquet",
+                "WKB Unindexed",
+                "WKB Indexed",
                 "Spatial Unindexed",
                 "Spatial Indexed",
                 "Flatten Unindexed",
                 "Flatten Indexed",
-                "GeoParquet",
+                "WKB Unindexed",
+                "WKB Indexed",
                 "Spatial Unindexed",
                 "Spatial Indexed",
                 "Flatten Unindexed",
                 "Flatten Indexed"
-
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark_for_msbuildings.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmark_for_wkbmsbuildings.csv")) {
 
             out.print("Test");
 
@@ -143,45 +144,11 @@ public class msbuildings {
         }
     }
 
-
-    public static long testQueryInGeoParquet(SparkSession spark, String path) throws Exception {
-
-        Dataset<Row> table2 = spark.read()
-                .parquet(path)
-                .withColumn("geom", expr("ST_GeomFromWKB(geometry)"));
-
-        table2.createOrReplaceTempView("table");
-
-        long t1 = System.currentTimeMillis();
-
-        spark.sql("""
-                   SELECT
-                         SUM(ST_AreaSpheroid(geom)) AS total_area
-                     FROM table
-                     WHERE ST_Contains(
-                              ST_PolygonFromEnvelope(
-                                  -74.26,
-                                  40.47,
-                                  -73.70,
-                                  40.91
-                              ),
-                              geom
-                     );
-                """).show(false);
-        long duration=System.currentTimeMillis()-t1;
-
-        System.out.println("Querying from geoparquet file time = " + duration);
-
-        return duration;
-    }
     private static long testQuery(
-
-            SparkSession spark,
             TableSpec table,
-            boolean indexed, UDFRegistry udfRegistry) throws IOException {
+            boolean indexed, UDFRegistry<?,?> udfRegistry) throws IOException {
 
-        udfRegistry.registerDecode(spark);
-
+        udfRegistry.registerDecode();
 
         String bboxFilter = indexed
                 ? """
@@ -227,33 +194,11 @@ public class msbuildings {
     }
 
 
-    public static long testDecodeForGeoparquet(SparkSession spark, String path) throws Exception {
-
-        Dataset<Row> t = spark.read()
-                .parquet(path)
-                .withColumn("geom", expr("ST_GeomFromWKB(geometry)"));
-
-        long start = System.currentTimeMillis();
-
-        t.selectExpr(
-                        "ST_AreaSpheroid(geom) as area"
-                )
-                .agg(expr("avg(area)"))
-                .show();
-
-        long duration = System.currentTimeMillis() - start;
-
-        System.out.println("geoparquet decode time = " + duration);
-
-        return duration;
-
-    }
-
-    public static long testDecode(SparkSession spark, TableSpec table, UDFRegistry udfregistry) throws Exception {
+    public static long testDecode(TableSpec table, UDFRegistry<?,?> udfregistry) throws Exception {
 
         String fullName= table.database() + "." + table.table();
 
-        udfregistry.registerDecode(spark);
+        udfregistry.registerDecode();
 
         Dataset<Row> t = spark.read()
                 .format("iceberg")

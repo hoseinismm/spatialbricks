@@ -19,56 +19,31 @@ public class SpatialWriting implements Serializable {
 
     private final SparkSession spark;
     private final GeometryReader<?> adapter;
-    private final SpatialInputReader4 inputReader;
-    private final BronzeWriter bronzeWriter;
+    private final SpatialInputReader_version4 inputReader;
     private final SilverBboxWriter silverBboxWriter;
     private final BucketServiceForBboxIndexing bucketServiceForBboxIndexing;
-    private final UDFRegistry udfRegistry;
+    private final UDFRegistry<?,?> udfRegistry;
 
     public SpatialWriting
-            (SparkSession spark, GeometryReader<?> adapter, UDFRegistry udfRegistry) {
+            (SparkSession spark, GeometryReader<?> adapter, UDFRegistry<?,?> udfRegistry) {
         this.spark = spark;
         this.adapter = adapter;
-        this.inputReader = new SpatialInputReader4(spark);
-        this.bronzeWriter = new BronzeWriter(spark);
+        this.inputReader = new SpatialInputReader_version4(spark);
         this.silverBboxWriter = new SilverBboxWriter(spark);
         this.bucketServiceForBboxIndexing = new BucketServiceForBboxIndexing(spark);
         this.udfRegistry = udfRegistry;
-
     }
 
     public SpatialWriting(SparkSession spark) {
-        this(spark, null,new SpatialParquet ());
+        this( null,new SpatialParquet (spark));
     }
 
     public SpatialWriting(SparkSession spark, GeometryReader<?> adapter) {
-        this(spark, adapter, new SpatialParquet ());
+        this(spark, adapter, new SpatialParquet (spark));
     }
 
-    public SpatialWriting(SparkSession spark, UDFRegistry udfRegistry) {
+    public SpatialWriting(SparkSession spark, UDFRegistry<?,?> udfRegistry) {
         this(spark,  new WKBReaderAdapter(), udfRegistry);
-    }
-
-
-    public void bronzeLayer(TableSpec bronze, String inputPath)
-            throws Exception {
-
-        Dataset<Row> df = inputReader.read(inputPath);
-
-        df = checkGeometryColumnName(df);
-
-        bronzeWriter.writeBronze(bronze, df);
-    }
-
-    public void bronzeLayerBinary(TableSpec bronze, String inputPath)
-            throws Exception {
-
-
-        Dataset<Row> df = inputReader.read(inputPath);
-
-        df = checkGeometryColumnName(df);
-
-        bronzeWriter.writeBronzeBinary(bronze, df);
     }
 
     public void silverLayerWithoutBboxIndexing(
@@ -92,7 +67,7 @@ public class SpatialWriting implements Serializable {
             Dataset<Row> df
     )   throws NoSuchTableException {
 
-        udfRegistry.registerGeometryUdf(spark, adapter);
+        udfRegistry.registerGeometryUdf(adapter);
 
         Dataset<Row> transformed = SpatialTransformerForConvertGeometry.transform(df, false);
 
@@ -105,10 +80,6 @@ public class SpatialWriting implements Serializable {
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize)
             throws Exception {
-
-        JavaSparkContext jsc =
-                JavaSparkContext.fromSparkContext(
-                        spark.sparkContext());
 
         Dataset<Row> df =
                 inputReader.read(inputPath);
@@ -128,7 +99,7 @@ public class SpatialWriting implements Serializable {
             long maxPartitionSize)
             throws NoSuchTableException {
 
-        udfRegistry.registerGeometryUdf(spark, adapter);
+        udfRegistry.registerGeometryUdf(adapter);
 
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(
