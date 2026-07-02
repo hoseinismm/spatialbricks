@@ -82,6 +82,7 @@ public class internatandvoicecoverage {
 
                 System.out.println("Run " + (i + 1));
 
+
                 spark.catalog().clearCache();
                 System.gc();
                 Thread.sleep(3000);
@@ -130,6 +131,7 @@ public class internatandvoicecoverage {
                 System.gc();
                 Thread.sleep(3000);
                 results[11][i] = testDecode( flattenSilverIndexed, flattenRegistry);
+
         }
 
         return results;
@@ -153,7 +155,7 @@ public class internatandvoicecoverage {
                 "Flatten Indexed"
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark_internet_and_voice_coverage5.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmark_internet_and_voice_coverage6.csv")) {
 
             out.print("Test");
 

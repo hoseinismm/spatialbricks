@@ -87,8 +87,8 @@ public class nyctaxi {
             System.out.println("Run " + (i + 1));
 
 
-            results[0][i] = testQuery( wkbUnindexed, GeometryFormat.WKB,false);
-            results[1][i] = testQuery( wkbIndexed, GeometryFormat.WKB,true);
+            results[0][i] = testQuery(wkbUnindexed, GeometryFormat.WKB,false);
+            results[1][i] = testQuery(wkbIndexed, GeometryFormat.WKB,true);
             results[2][i] = testQuery(silverUnindexed,GeometryFormat.SPATIAL,false);
             results[3][i] = testQuery(silverIndexed,GeometryFormat.SPATIAL,true);
             results[4][i] = testQuery(flattenSilverUnindexed,GeometryFormat.FLATTEN,false);
@@ -123,7 +123,7 @@ public class nyctaxi {
                 "Flatten Indexed"
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark_for_nyc_taxi4.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmark_for_nyc_taxi6.csv")) {
 
             out.print("Test");
 

@@ -42,7 +42,7 @@ public class SparkConfigLocal {
                         "org.apache.sedona:sedona-spark-shaded-3.5_2.13:1.7.2"
                 }))
 
-                .master("local[4]") // مهم
+                .master("local[*]") // مهم
 
                 .getOrCreate();
     }
