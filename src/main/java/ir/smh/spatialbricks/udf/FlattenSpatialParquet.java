@@ -2,7 +2,6 @@ package ir.smh.spatialbricks.udf;
 
 import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.decoder.FlattenSpatialParquetDecoder;
-import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
 import ir.smh.spatialbricks.encoder.converttogeometry.*;
 import ir.smh.spatialbricks.encoder.GeometryResult;
 
@@ -95,8 +94,8 @@ public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, O
                 } else if (input instanceof String && adapter instanceof WKTReaderAdapter) {
                     geometry = ((WKTReaderAdapter) adapter).inputToGeometry((String) input);
 
-                } else  if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter) {
-                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
+                } else  if (input instanceof Geometry && adapter instanceof GeoJsonGeometricalAdapter) {
+                    geometry = ((GeoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
 
                 } else {
                     throw new IllegalArgumentException("Unsupported input: " + input.getClass());
@@ -110,7 +109,7 @@ public class FlattenSpatialParquet implements UDFRegistry<Geometry,Map<String, O
             }
         };
 
-        spark.udf().register("stringOrGeomToGeometry", udf, GEOMETRY_TYPE);
+        spark.udf().register("encodeGeometry", udf, GEOMETRY_TYPE);
     }
 
     public Row geometryToRow(Geometry geometry) {

@@ -4,7 +4,7 @@ import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.core.SpatialWriting;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
-import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.udf.SpatialParquet;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
@@ -33,7 +33,7 @@ public class CreateAuBuildings {
 
                 SedonaContext.create(spark);
 
-                GeometryReader<?> geoJsonFile = new geoJsonGeometricalAdapter();
+                GeometryReader<?> geoJsonFile = new GeoJsonGeometricalAdapter();
 
                 SpatialWriting spatialWriting =
                         new SpatialWriting(spark, geoJsonFile, new SpatialParquet(spark));

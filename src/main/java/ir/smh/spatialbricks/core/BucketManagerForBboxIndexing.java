@@ -27,8 +27,6 @@ public class BucketManagerForBboxIndexing {
 
         long effectiveMaxSize = (maxSize < 1) ? 1L : maxSize;
 
-        try {
-
             for (Row row : rows) {
 
                 if (row == null) {
@@ -55,7 +53,7 @@ public class BucketManagerForBboxIndexing {
 
                 Bucket current = rootBucket;
 
-                if (bucketOutOfRange(min_x,min_y ,max_x , max_y, current)) {
+                if (bucketOutOfRange(min_x,min_y ,max_x , max_y)) {
                     System.out.println(
                             "*********this geo is out of range: "
                                     + min_x + ", " + min_y + ", " + max_x + ", " + max_y
@@ -101,15 +99,10 @@ public class BucketManagerForBboxIndexing {
                     current.fraction -= 1;
                 }
             }
-        } catch (Exception e) {
-            System.err.println(
-                    "Error processing geo values: "
-                            + e.getMessage());
-            e.printStackTrace();
-        }
     }
 
     public static class Bucket implements Serializable {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         public double xmin;
@@ -158,25 +151,30 @@ public class BucketManagerForBboxIndexing {
                                      new FileOutputStream(filename)))) {
 
             out.writeObject(bucket);
-            System.out.println("Bucket saved to " + filename);
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Failed to save bucket to: " + filename, e);
         }
     }
 
 
     public static Bucket loadBucket(String filename) {
-        try (ObjectInputStream in =
-                     new ObjectInputStream(
-                             new GZIPInputStream(
-                                     new FileInputStream(filename)))) {
+        Path path = Path.of(filename);
+
+        if (!Files.exists(path)) {
+            return null;
+        }
+
+        try (ObjectInputStream in = new ObjectInputStream(
+                new GZIPInputStream(
+                        Files.newInputStream(path)))) {
 
             return (Bucket) in.readObject();
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+        } catch (IOException | ClassNotFoundException e) {
+            throw new IllegalStateException(
+                    "Failed to load bucket from: " + filename, e);
         }
     }
 
@@ -198,7 +196,7 @@ public class BucketManagerForBboxIndexing {
         }
     }
 
-    private static boolean bucketOutOfRange(double xmin,  double ymin, double xmax, double ymax, Bucket bucket) {
+    private static boolean bucketOutOfRange(double xmin,  double ymin, double xmax, double ymax) {
         return !(  xmin >= -180 && ymin <= 90 && xmax <= 180 && ymax >= -90);
     }
 
@@ -208,7 +206,7 @@ public class BucketManagerForBboxIndexing {
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
             Long totalRowsHint,
-            UDFRegistry udfRegistry) {
+            UDFRegistry<?,?> udfRegistry) {
 
         Path bucketPath = Paths.get(
                 silver.path(),

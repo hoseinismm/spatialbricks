@@ -19,7 +19,7 @@ public class SpatialTransformerForConvertGeometry implements Serializable {
                 .withColumn(
                         "geometry",
                         callUDF(
-                                "stringOrGeomToGeometry",
+                                "encodeGeometry",
                                 col("geometry")
                         )
                 )

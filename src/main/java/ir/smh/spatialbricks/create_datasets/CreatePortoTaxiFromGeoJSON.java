@@ -1,6 +1,6 @@
 package ir.smh.spatialbricks.create_datasets;
 
-import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
@@ -31,7 +31,7 @@ public class CreatePortoTaxiFromGeoJSON {
 
         SedonaContext.create(spark);
 
-        GeometryReader<?>  geoparqetFile= new geoJsonGeometricalAdapter();
+        GeometryReader<?>  geoparqetFile= new GeoJsonGeometricalAdapter();
 
         SpatialWriting wkbSpatialWriting= new SpatialWriting(spark,geoparqetFile, new WKBIndexedParquet(spark) );
 

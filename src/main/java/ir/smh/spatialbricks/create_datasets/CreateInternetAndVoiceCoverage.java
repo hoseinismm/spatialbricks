@@ -1,6 +1,6 @@
 package ir.smh.spatialbricks.create_datasets;
 
-import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
@@ -35,7 +35,7 @@ public class CreateInternetAndVoiceCoverage {
 
         SedonaContext.create(spark);
 
-        GeometryReader<?>  geoJsonFile= new geoJsonGeometricalAdapter();
+        GeometryReader<?>  geoJsonFile= new GeoJsonGeometricalAdapter();
 
         SpatialWriting wkbWriting = new SpatialWriting(spark,geoJsonFile, new WKBIndexedParquet(spark)  );
 

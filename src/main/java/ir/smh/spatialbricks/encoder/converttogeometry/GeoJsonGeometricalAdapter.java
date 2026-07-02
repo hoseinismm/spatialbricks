@@ -4,7 +4,7 @@ import org.locationtech.jts.geom.*;
 
 import java.io.Serializable;
 
-public class geoJsonGeometricalAdapter implements GeometryReader<Geometry>, Serializable {
+public class GeoJsonGeometricalAdapter implements GeometryReader<Geometry>, Serializable {
 
     @Override
     public Geometry inputToGeometry(Geometry geometry) {

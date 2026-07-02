@@ -1,6 +1,6 @@
 package ir.smh.spatialbricks.create_datasets;
 
-import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
@@ -12,7 +12,6 @@ import ir.smh.spatialbricks.udf.SpatialParquet;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
-import java.io.File;
 import java.io.IOException;
 
 public class CreateMsBuildings {
@@ -35,7 +34,7 @@ public class CreateMsBuildings {
 
                 SedonaContext.create(spark);
 
-                GeometryReader<?> geoJsonFile = new geoJsonGeometricalAdapter();
+                GeometryReader<?> geoJsonFile = new GeoJsonGeometricalAdapter();
 
                 SpatialWriting wkbWriting =
                         new SpatialWriting(spark, geoJsonFile, new WKBIndexedParquet(spark));

@@ -2,27 +2,23 @@ package ir.smh.spatialbricks.udf;
 
 import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
 import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing.Bucket;
-import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
 import ir.smh.spatialbricks.decoder.WKBParquetDecoder;
 import ir.smh.spatialbricks.encoder.GeometryResult;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
 import ir.smh.spatialbricks.encoder.converttogeometry.WKTReaderAdapter;
-import ir.smh.spatialbricks.encoder.converttogeometry.geoJsonGeometricalAdapter;
+import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.api.java.UDF1;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.sedona_sql.UDT.GeometryUDT$;
-import org.apache.spark.sql.sedona_sql.expressions.ST_NumGeometries;
 import org.apache.spark.sql.types.*;
 import org.locationtech.jts.geom.*;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 import static ir.smh.spatialbricks.encoder.GeometryResult.lineFromMultiPoint;
 import static org.apache.spark.sql.functions.*;
@@ -94,8 +90,8 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
                                     geometry
                             );
 
-                } else  if (input instanceof Geometry && adapter instanceof geoJsonGeometricalAdapter) {
-                    geometry = ((geoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
+                } else  if (input instanceof Geometry && adapter instanceof GeoJsonGeometricalAdapter) {
+                    geometry = ((GeoJsonGeometricalAdapter) adapter).inputToGeometry((Geometry) input);
                     geom =
                             ParseGeometryForWKB.parseGeometry(
                                     geometry
@@ -113,7 +109,7 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
             }
         };
 
-        spark.udf().register("stringOrGeomToGeometry", udf, GEOMETRY_TYPE);
+        spark.udf().register("encodeGeometry", udf, GEOMETRY_TYPE);
     }
 
     public Row geometryToRow(byte[] geom) {
