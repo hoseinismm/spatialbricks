@@ -77,7 +77,7 @@ public class CreateMsBuildings {
 
 //                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
 
-//                flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed, path, 150000L, 131072L);
+                flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed, path, 150000L, 131072L);
 
                 long duration = System.currentTimeMillis() - startTime;
 

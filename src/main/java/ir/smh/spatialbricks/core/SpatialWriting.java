@@ -4,14 +4,20 @@ import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.udf.SpatialParquet;
 import ir.smh.spatialbricks.udf.UDFRegistry;
 import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.spark.Spark3Util;
 import org.apache.spark.sql.Row;
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
+import org.apache.spark.sql.catalyst.parser.ParseException;
 
 import java.io.Serializable;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 
 
@@ -62,10 +68,13 @@ public class SpatialWriting implements Serializable {
         );
     }
 
+
+
+
     public void silverLayerWithoutBboxIndexing(
             TableSpec silver,
             Dataset<Row> df
-    )   throws NoSuchTableException {
+    ) throws NoSuchTableException, ParseException {
 
         udfRegistry.registerGeometryUdf(adapter);
 
@@ -97,7 +106,7 @@ public class SpatialWriting implements Serializable {
             Dataset<Row> df,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize)
-            throws NoSuchTableException {
+            throws NoSuchTableException, ParseException {
 
         udfRegistry.registerGeometryUdf(adapter);
 
@@ -116,20 +125,61 @@ public class SpatialWriting implements Serializable {
                 SpatialTransformerForConvertGeometry
                         .transform(df, true);
 
-        transformed =
-                SpatialTransformerForBboxIndexing.transform(
+        BucketManagerForBboxIndexing.Bucket rootBucket =
+                BucketManagerForBboxIndexing.computeBucketBorders(
+                        spark,
                         transformed,
                         silver,
-                        jsc,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
-                        totalRowsHint, udfRegistry
+                        totalRowsHint,
+                        udfRegistry
+                );
+
+        transformed =
+                SpatialTransformerForBboxIndexing.transform(
+                        rootBucket,
+                        transformed,
+                        jsc,
+                        udfRegistry
                 );
 
         silverBboxWriter.writeSilver(
                 silver,
                 transformed
         );
+
+        updateOrCreateBucketFile(spark, rootBucket, silver);
+
+    }
+
+    private void updateOrCreateBucketFile(SparkSession spark,BucketManagerForBboxIndexing.Bucket rootBucket, TableSpec silver) throws NoSuchTableException, ParseException {
+
+        String fullName = silver.database() + "." + silver.table();
+
+        Table table = Spark3Util.loadIcebergTable(
+                spark,
+                fullName);
+
+        Snapshot snapshot = table.currentSnapshot();
+
+        if (snapshot == null) {
+            throw new IllegalStateException(
+                    "Table " + table.name() + " has no current snapshot.");
+        }
+
+        rootBucket.snapshot = snapshot.snapshotId();
+
+        Path bucketPath = Paths.get(
+                silver.path(),
+                String.format(
+                        "bucket_%s_%s.gz",
+                        silver.database(),
+                        silver.table()
+                )
+        );
+        BucketManagerForBboxIndexing.saveBucket(rootBucket,bucketPath.toString());
+
     }
 
     private Dataset<Row> checkGeometryColumnName(Dataset<Row> df) {
@@ -163,24 +213,29 @@ public class SpatialWriting implements Serializable {
 
         Dataset<Row> transformed = udfRegistry.addPointGeometryColumn(df, xColumn, yColumn, "geometry");
 
-//        transformed=transformed.cache();
-
-
-
+//      transformed=transformed.cache();
 
         Long totalRowsHint =
                 bucketServiceForBboxIndexing.updateBucket(
                         silver
                 );
 
-        transformed =
-                SpatialTransformerForBboxIndexing.transform(
+        BucketManagerForBboxIndexing.Bucket rootBucket =
+                BucketManagerForBboxIndexing.computeBucketBorders(
+                        spark,
                         transformed,
                         silver,
-                        jsc,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
                         totalRowsHint,
+                        udfRegistry
+                );
+
+        transformed =
+                SpatialTransformerForBboxIndexing.transform(
+                        rootBucket,
+                        transformed,
+                        jsc,
                         udfRegistry
                 );
 
@@ -188,13 +243,15 @@ public class SpatialWriting implements Serializable {
                 silver,
                 transformed
         );
+
+        updateOrCreateBucketFile(spark, rootBucket, silver);
     }
 
     public void customWriterWithoutBboxIndex(
             TableSpec silver,
             String inputPath,
             String xColumn, String yColumn)
-            throws NoSuchTableException {
+            throws NoSuchTableException, ParseException {
 
         Dataset<Row> df;
 

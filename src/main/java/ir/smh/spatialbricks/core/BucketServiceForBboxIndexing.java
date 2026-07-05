@@ -1,8 +1,13 @@
 package ir.smh.spatialbricks.core;
 
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.spark.Spark3Util;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
+import org.apache.spark.sql.catalyst.parser.ParseException;
 
 import java.io.File;
 import java.nio.file.Paths;
@@ -19,7 +24,7 @@ public class BucketServiceForBboxIndexing {
         this.spark = spark;
     }
 
-    public Long updateBucket(TableSpec silver) {
+    public Long updateBucket(TableSpec silver) throws NoSuchTableException, ParseException {
 
         String fullName = silver.database() + "." + silver.table();
         String metadataTable = fullName + ".partitions";
@@ -27,47 +32,84 @@ public class BucketServiceForBboxIndexing {
 
         String bucketPath = Paths.get(silver.path(), bucketFileName).toString();
 
-        File f = new File(bucketPath);
-        if (!f.exists()) {
-            System.out.println("Bucket " + bucketFileName + " does not exist to update");
-            return null;
-        }
+        boolean exists = spark.catalog().tableExists(fullName);
+        if (exists) {
 
-        Dataset<Row> statstest = spark.read()
-                .table(metadataTable);
-        statstest.show();
+            File f = new File(bucketPath);
+            if (!f.exists()) {
+                System.out.println("Bucket " + bucketFileName + " does not exist to update");
+                return null;
+            }
 
-        Dataset<Row> stats = spark.read()
-                .table(metadataTable)
-                .filter(col("partition").isNotNull())
-                .select(
-                        col("partition").getField("geometry.bbox_partitioning.region_code").as("region_code"),
-                        col("record_count")
-                )
-                .filter(col("region_code").isNotNull())
-                .groupBy("region_code")
-                .agg(sum(col("record_count")).as("total_count"));
+            BucketManagerForBboxIndexing.Bucket bucket = BucketManagerForBboxIndexing.loadBucket(bucketPath);
 
-        List<Row> partitionStats = stats.collectAsList();
+            Table table = Spark3Util.loadIcebergTable(
+                    spark,
+                    fullName);
 
-        long totalRowsHint = 0L;
+            Snapshot snapshot = table.currentSnapshot();
 
-        for (Row row : partitionStats) {
-            Long count = row.getAs("total_count");
-            if (count != null) {
-                totalRowsHint += count;
+            if (bucket == null) {
+                throw new IllegalStateException(
+                        "Table " + table.name() + " current table has no bucket to add indexed data. please update table first");
+            }
+            if (snapshot == null) {
+                System.out.println(
+                        "Table has no current snapshot. Bucket cannot be updated."
+                );
+                return null;
+            }
+            long id = snapshot.snapshotId();
+
+            if (bucket.snapshot == id) {
+
+
+//            Dataset<Row> statstest = spark.read()
+//                    .table(metadataTable);
+//            statstest.show();
+
+                Dataset<Row> stats = spark.read()
+                        .table(metadataTable)
+                        .filter(col("partition").isNotNull())
+                        .select(
+                                col("partition").getField("geometry.bbox_partitioning.region_code").as("region_code"),
+                                col("record_count")
+                        )
+                        .filter(col("region_code").isNotNull())
+                        .groupBy("region_code")
+                        .agg(sum(col("record_count")).as("total_count"));
+
+                List<Row> partitionStats = stats.collectAsList();
+
+                long totalRowsHint = 0L;
+
+                for (Row row : partitionStats) {
+                    Long count = row.getAs("total_count");
+                    if (count != null) {
+                        totalRowsHint += count;
+                    }
+                }
+
+
+//        System.out.println("partition metadata"+partitionStats);
+
+                BucketManagerForBboxIndexing.updateTreeFromStats(partitionStats, bucket);
+
+                BucketManagerForBboxIndexing.saveBucket(bucket, bucketPath);
+
+                System.out.println("Bucket updated to " + bucketFileName);
+                return totalRowsHint;
+            } else {
+                System.out.println("""
+            Bucket snapshot differs from the current table snapshot.
+            Update table if you think there is a problem.
+            """);
             }
         }
-
-        BucketManagerForBboxIndexing.Bucket bucket = BucketManagerForBboxIndexing.loadBucket(bucketPath);
-
-        System.out.println("partition metadata"+partitionStats);
-
-        BucketManagerForBboxIndexing.updateTreeFromStats(partitionStats, bucket);
-
-        BucketManagerForBboxIndexing.saveBucket(bucket, bucketPath);
-
-        System.out.println("Bucket updated to " + bucketFileName);
-    return totalRowsHint;
+        System.out.println("""
+            The table does not exist. If a bucket file is present,
+            it will be ignored.
+            """);
+        return null;
     }
 }

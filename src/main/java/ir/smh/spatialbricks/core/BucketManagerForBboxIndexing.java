@@ -1,13 +1,22 @@
 package ir.smh.spatialbricks.core;
 
 import ir.smh.spatialbricks.udf.UDFRegistry;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.spark.Spark3Util;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
+import org.apache.spark.sql.catalyst.parser.ParseException;
+
 import static org.apache.spark.sql.functions.callUDF;
 import static org.apache.spark.sql.functions.col;
 
 import java.io.*;
 import java.util.List;
+import java.util.Scanner;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.nio.file.Path;
@@ -119,6 +128,7 @@ public class BucketManagerForBboxIndexing {
         public boolean hasChildren;
         public double fraction;
         public long code;
+        public Long snapshot;
 
 
         Bucket(double xmin, double ymin, double xmax, double ymax, long code) {
@@ -133,6 +143,7 @@ public class BucketManagerForBboxIndexing {
             this.hasChildren = false;
             this.fraction = 0;
             this.code = code;
+            this.snapshot = null;
         }
 
         public void createChild() {
@@ -145,6 +156,7 @@ public class BucketManagerForBboxIndexing {
     }
 
     public static void saveBucket(Bucket bucket, String filename) {
+
         try (ObjectOutputStream out =
                      new ObjectOutputStream(
                              new GZIPOutputStream(
@@ -160,6 +172,7 @@ public class BucketManagerForBboxIndexing {
 
 
     public static Bucket loadBucket(String filename) {
+
         Path path = Path.of(filename);
 
         if (!Files.exists(path)) {
@@ -201,12 +214,13 @@ public class BucketManagerForBboxIndexing {
     }
 
     public static Bucket computeBucketBorders(
+            SparkSession spark,
             Dataset<Row> df,
             TableSpec silver,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
             Long totalRowsHint,
-            UDFRegistry<?,?> udfRegistry) {
+            UDFRegistry<?,?> udfRegistry) throws NoSuchTableException, ParseException {
 
         Path bucketPath = Paths.get(
                 silver.path(),
@@ -243,20 +257,86 @@ public class BucketManagerForBboxIndexing {
 
         List<Row> rows = bboxDf.collectAsList();
 
+        Bucket loadedBucket;
         Bucket rootBucket;
         if (Files.exists(bucketPath)) {
 
-            rootBucket =
+            loadedBucket =
                     loadBucket(
                             bucketPath.toString()
                     );
+            if (loadedBucket == null) {
+                throw new IllegalStateException("Loaded bucket is null.");
+            }
+            String tableName = silver.database() + "." + silver.table();
+            boolean exists = spark.catalog().tableExists(tableName);
+            if (exists) {
+                Table table = Spark3Util
+                        .loadIcebergTable(spark, tableName);
 
-            System.out.println(
-                    "Bucket loaded from: "
-                            + bucketPath
-            );
+                Snapshot snapshot = table.currentSnapshot();
 
-            if (rootBucket == null) {
+                if (snapshot == null) {
+                    System.out.println("""
+                                Table has no current snapshot.
+                                Saved bucket is considered invalid.
+                                Rebuilding bucket...
+                            """);
+
+                    rootBucket = initialBucket(
+                            -180.0,
+                            -90.0,
+                            180.0,
+                            90.0
+                    );
+                } else  if (loadedBucket.snapshot == snapshot.snapshotId()) {
+                    rootBucket = loadedBucket;
+                    System.out.println(
+                            "Bucket loaded from: "
+                                    + bucketPath + " Successfully"
+                    );
+                } else {
+                    System.out.println("""
+                            Current snapshot of table differs from saved bucket.
+                            [C] Continue with saved bucket
+                            [R] Rebuild bucket
+                            [Any other key] Terminate
+                            """);
+
+                    Scanner scanner = new Scanner(System.in);
+                    String choice = scanner.nextLine().trim();
+
+                    if (choice.equalsIgnoreCase("C")) {
+
+                        rootBucket = loadedBucket;
+
+                        System.out.println(
+                                "Continue using saved bucket: " + bucketPath
+                        );
+
+                    } else if (choice.equalsIgnoreCase("R")) {
+
+                        rootBucket = initialBucket(
+                                -180.0,
+                                -90.0,
+                                180.0,
+                                90.0
+                        );
+
+                        System.out.println(
+                                "Rebuilding bucket from scratch."
+                        );
+
+                    } else {
+
+                        throw new IllegalStateException(
+                                "Operation cancelled by user."
+                        );
+                    }
+                }
+
+            } else {
+
                 rootBucket =
                         initialBucket(
                                 -180.0,
@@ -264,9 +344,13 @@ public class BucketManagerForBboxIndexing {
                                 180.0,
                                 90.0
                         );
-            }
 
-        } else {
+                System.out.println(
+                        "Created new bucket for: "
+                                + bucketPath
+                );
+            }
+        } else  {
 
             rootBucket =
                     initialBucket(
@@ -292,11 +376,6 @@ public class BucketManagerForBboxIndexing {
             );
         }
 
-        saveBucket(
-                rootBucket,
-                bucketPath.toString()
-        );
-
         return rootBucket;
     }
 
@@ -314,16 +393,25 @@ public class BucketManagerForBboxIndexing {
 
     private static void updateBucket(Bucket bucket, long code, Long count) {
 
-        if (bucket == null) return;
+        if (bucket == null) {
+            return;
+        }
+
         Bucket node = decode(code, bucket);
+
+        if (node == null) {
+            System.err.println("Bucket node with code " + code + " was not found.");
+            return;
+        }
+
         node.fraction = 0;
 
-        System.out.println("oldcount: " + node.count + " correct is:" + count+ "code:"+node.code);
+    System.out.println("oldcount: " + node.count + " correct is:" + count + " code:" + node.code);
 
-        if (count!=null) {
+        if (count != null) {
             node.count = count;
         } else {
-            bucket.count = 0;
+            node.count = 0;
         }
     }
 
@@ -331,18 +419,20 @@ public class BucketManagerForBboxIndexing {
 
         String binary = Long.toBinaryString(code);
 
-        // باید با 1 شروع شود
         if (binary.charAt(0) != '1') {
-            throw new IllegalArgumentException(
-                    "Invalid code: missing sentinel"
-            );
+            System.err.println("""
+                Bucket is corrupted (missing sentinel bit).
+                Please rebuild or update the table from scratch.
+                """);
+            return null;
         }
 
-        // طول باید فرد باشد
         if ((binary.length() % 2 == 0)) {
-            throw new IllegalArgumentException(
-                    "Invalid code: length must be odd"
-            );
+            System.err.println("""
+                Bucket is corrupted (invalid code length).
+                Please rebuild or update the index of table from scratch.
+                """);
+            return null;
         }
 
         for (int i = 1; i < binary.length(); i += 2) {
@@ -354,16 +444,19 @@ public class BucketManagerForBboxIndexing {
                 case "01" -> node.topleft;
                 case "10" -> node.bottomright;
                 case "11" -> node.bottomleft;
-                default -> throw new IllegalStateException();
+                default -> null;
             };
 
             if (node == null) {
-                throw new IllegalArgumentException(
-                        "Code points to a non-existing bucket: " + code
-                );
+                System.err.println("""
+                    Bucket is corrupted (invalid bucket path).
+                    Please rebuild or update index of the table from scratch.
+                    """);
+                return null;
             }
         }
-        return  node;
+
+        return node;
     }
 }
 

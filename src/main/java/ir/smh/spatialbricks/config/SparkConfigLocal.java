@@ -1,7 +1,9 @@
 package ir.smh.spatialbricks.config;
 
 import org.apache.spark.sql.SparkSession;
+
 public class SparkConfigLocal {
+
     public static SparkSession createSession(String warehousePath) {
         return SparkSession.builder()
                 .appName("Spatial-Lakehouse-Writer")
@@ -16,15 +18,14 @@ public class SparkConfigLocal {
 
                 // ================= OFFHEAP =================
                 .config("spark.memory.offHeap.enabled", "true")
-                .config("spark.memory.offHeap.size", "4g")
+                .config("spark.memory.offHeap.size", "2g")
 
                 // ================= PERFORMANCE =================
                 .config("spark.sql.shuffle.partitions", "50")
                 .config("spark.default.parallelism", "50")
                 .config("spark.sql.autoBroadcastJoinThreshold", "-1")
-                .config("spark.sql.files.maxPartitionBytes", "32m")
-                .config("spark.sql.parquet.blockSize", "32m")
-
+//                .config("spark.sql.files.maxPartitionBytes", "32m")
+//                .config("spark.sql.parquet.blockSize", "32m")
 
                 // ================= SEDONA + ICEBERG =================
                 .config("spark.sql.extensions",
@@ -42,9 +43,8 @@ public class SparkConfigLocal {
                         "org.apache.sedona:sedona-spark-shaded-3.5_2.13:1.7.2"
                 }))
 
-                .master("local[*]") // مهم
+                .master("local[4]")
 
                 .getOrCreate();
     }
 }
-

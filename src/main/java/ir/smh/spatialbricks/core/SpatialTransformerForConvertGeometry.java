@@ -25,8 +25,11 @@ public class SpatialTransformerForConvertGeometry implements Serializable {
                 )
                 .filter(col("geometry").isNotNull());
 
+//        if (cacheResult) {
+//            transformed = transformed.cache();
+//        }
         if (cacheResult) {
-            transformed = transformed.cache();
+            transformed = transformed.persist(StorageLevel.DISK_ONLY());
         }
 
         return transformed;

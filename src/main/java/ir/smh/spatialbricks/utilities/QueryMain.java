@@ -5,28 +5,50 @@ import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.udf.SpatialParquet;
 import ir.smh.spatialbricks.udf.UDFRegistry;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.spark.Spark3Util;
+import org.apache.iceberg.spark.actions.SparkActions;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
+import org.apache.spark.sql.catalyst.analysis.TableAlreadyExistsException;
 import org.apache.spark.sql.catalyst.parser.ParseException;
 
 import java.io.IOException;
 
 public class QueryMain {
-    public static void main(String[] args) throws IOException, NoSuchTableException, ParseException {
+    public static void main(String[] args) throws IOException, NoSuchTableException, ParseException, TableAlreadyExistsException {
 
-        var spark = SparkConfigLocal.createSession("../datasets/aubuildings");
+        var spark = SparkConfigLocal.createSession("../datasets/nyc_taxi");
         spark.sparkContext().setLogLevel("ERROR");
         SedonaContext.create(spark);
-        UDFRegistry udfRegistry=new WKBIndexedParquet(spark);
+        UDFRegistry udfRegistry=new SpatialParquet(spark);
         udfRegistry.registerDecode();
         SedonaSQLRegistrator.registerAll(spark);
-        spark.sql("""
-                SELECT
-              ST_AsText(ST_GeomFromWKB(geometry.geom))
-          FROM wkbIndexed.aubuildings
-          LIMIT 20;
-        """).show(false);
+//        spark.sql("""
+//                SELECT
+//              ST_AsText(ST_GeomFromWKB(geometry.geom))
+//          FROM wkbIndexed.aubuildings
+//          LIMIT 20;
+//        """).show(false);
+
+        Table table = Spark3Util.loadIcebergTable(
+                spark,
+                "SilverIndexed.nyc_taxi");
+        SparkActions
+                .get(spark)
+                .rewriteDataFiles(table)
+                .execute();
+        SparkActions.get(spark)
+                .expireSnapshots(table)
+                .expireOlderThan(System.currentTimeMillis())
+                .execute();
+        SparkActions.get(spark)
+                .deleteOrphanFiles(table)
+                .execute();
+
 
 
 //
@@ -37,16 +59,15 @@ public class QueryMain {
 //
 
 
-
-        /*
-
-        spark.sql("""
-                    SELECT COUNT(*) AS inside_count
-                    FROM silverlayer.FireStations
-                    WHERE geometry.center.x BETWEEN -74.0419 AND -73.8334
-                      AND geometry.center.y BETWEEN 40.5702 AND 40.7394
-                """).show();
-
+//
+//
+//
+//        spark.sql("""
+//                    SELECT sum(ST_NumGeometries(decodeGeometry(geometry)))
+//                    FROM silverIndexed.portotaxi
+//
+//                """).show();
+/*
         spark.sql("""
                     SELECT
                         file_path,

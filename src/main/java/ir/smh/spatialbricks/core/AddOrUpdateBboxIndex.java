@@ -8,6 +8,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
+import org.apache.spark.sql.catalyst.parser.ParseException;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +31,7 @@ public class AddOrUpdateBboxIndex {
             TableSpec silver,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize
-    ) throws NoSuchTableException, IOException {
+    ) throws NoSuchTableException, IOException, ParseException {
 
         String fullName = getFullName(silver);
 
@@ -71,7 +72,7 @@ public class AddOrUpdateBboxIndex {
             TableSpec silver,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize
-    ) throws NoSuchTableException, IOException {
+    ) throws NoSuchTableException, IOException, ParseException {
 
         String fullName = getFullName(silver);
 
@@ -117,13 +118,14 @@ public class AddOrUpdateBboxIndex {
             Long totalRowsHint,
             boolean onlyUnindexed
 
-    ) throws IOException {
+    ) throws IOException, NoSuchTableException, ParseException {
 
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(spark.sparkContext());
 
         BucketManagerForBboxIndexing.Bucket bucket =
                 BucketManagerForBboxIndexing.computeBucketBorders(
+                        spark,
                         rows,
                         silver,
                         rowsCapableOfProcessingByDriver,

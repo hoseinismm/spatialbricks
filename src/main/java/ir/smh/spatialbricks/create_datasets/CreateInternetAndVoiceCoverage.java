@@ -58,7 +58,7 @@ public class CreateInternetAndVoiceCoverage {
 
 //          wkbWriting.silverLayerWithoutBboxIndexing(wkbUnindexed, path );
 
-//          wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 68L, 32L );
+          wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 68L, 32L );
 
 //        spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 
@@ -68,7 +68,7 @@ public class CreateInternetAndVoiceCoverage {
 
 //        flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed,path,  68L, 32L);
 
-        Long duration = System.currentTimeMillis() - startTime;
+        long duration = System.currentTimeMillis() - startTime;
 
         System.out.println("Time of writing: "+ duration);
 

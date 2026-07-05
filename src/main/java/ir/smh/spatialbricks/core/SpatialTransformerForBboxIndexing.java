@@ -16,31 +16,20 @@ import static org.apache.spark.sql.functions.*;
 public class SpatialTransformerForBboxIndexing implements Serializable {
 
     static Dataset<Row> transform(
+            BucketManagerForBboxIndexing.Bucket rootBucket,
             Dataset<Row> df,
-            TableSpec silver,
             JavaSparkContext jsc,
-            long rowsCapableOfProcessingByDriver,
-            long maxPartitionSize,
-            Long totalRowsHint,
-            UDFRegistry udfregistry
+            UDFRegistry<?,?> udfRegistry
     )
     {
         //long n3 = df.count();
         //System.out.println("Row count n3 = " + n3);
 
-        BucketManagerForBboxIndexing.Bucket rootBucket =
-                BucketManagerForBboxIndexing.computeBucketBorders(
-                        df,
-                        silver,
-                        rowsCapableOfProcessingByDriver,
-                        maxPartitionSize,
-                        totalRowsHint, udfregistry
-                );
 
         Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets =
                 jsc.broadcast(rootBucket);
 
-        udfregistry.registerBucketUdf(
+        udfRegistry.registerBucketUdf(
                 broadcastRootBuckets
         );
 

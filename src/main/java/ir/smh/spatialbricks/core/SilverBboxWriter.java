@@ -1,12 +1,18 @@
 package ir.smh.spatialbricks.core;
 
 import ir.smh.spatialbricks.createsql.IcebergTableCreatorWithPartitioning;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.spark.Spark3Util;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
+import org.apache.spark.sql.catalyst.parser.ParseException;
 import org.apache.spark.sql.types.StructType;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 public class SilverBboxWriter {
@@ -17,16 +23,16 @@ public class SilverBboxWriter {
         this.spark = spark;
     }
 
-    void writeSilver(TableSpec silver, Dataset<Row> transformed) throws NoSuchTableException {
+    void writeSilver(TableSpec silver, Dataset<Row> transformed) throws NoSuchTableException, ParseException {
 
         String fullName = silver.database() + "." + silver.table();
         boolean exists = spark.catalog().tableExists(fullName);
 
-        transformed.printSchema();
+//        transformed.printSchema();
 
         if (!exists) {
             System.out.println("Now creating silver table with ID column...");
-            transformed.printSchema();
+//            transformed.printSchema();
             IcebergTableCreatorWithPartitioning.createIcebergTableFromSchema(
                     spark,
                     transformed.schema(),
@@ -47,6 +53,5 @@ public class SilverBboxWriter {
 
         transformed.writeTo(fullName).append();
         System.out.println("Data appended to silver layer");
-
     }
 }

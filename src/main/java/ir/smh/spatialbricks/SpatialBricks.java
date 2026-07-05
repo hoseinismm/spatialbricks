@@ -16,6 +16,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
+import org.apache.spark.sql.catalyst.parser.ParseException;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -33,7 +34,7 @@ public class SpatialBricks {
     }
 
     public enum GeometryFormat {
-        WKB,
+        WKB_PARQUET,
         SPATIAL_PARQUET,
         FLATTEN_SPATIAL_PARQUET
     }
@@ -56,7 +57,7 @@ public class SpatialBricks {
                 SparkSession spark) {
 
             return switch (format) {
-                case WKB -> new WKBIndexedParquet(spark);
+                case WKB_PARQUET -> new WKBIndexedParquet(spark);
                 case SPATIAL_PARQUET -> new SpatialParquet(spark);
                 case FLATTEN_SPATIAL_PARQUET -> new FlattenSpatialParquet(spark);
             };
@@ -108,7 +109,7 @@ public class SpatialBricks {
             String database,
             String table,
             Dataset<Row> df)
-            throws NoSuchTableException {
+            throws NoSuchTableException, ParseException {
 
         writer.silverLayerWithoutBboxIndexing(
                 table(database, table),
@@ -126,13 +127,28 @@ public class SpatialBricks {
                 inputPath);
     }
 
+    public void write(
+            String database,
+            String table,
+            String inputPath,
+            String columnx,
+            String columny
+
+    ) throws Exception {
+        writer.customWriterWithoutBboxIndex(
+                table(database, table),
+                inputPath,
+                columnx, columny
+        );
+    }
+
     public void writeWithIndex(
             String database,
             String table,
             Dataset<Row> df,
             long driverRows,
             long maxPartitionSize)
-            throws NoSuchTableException {
+            throws NoSuchTableException, ParseException {
 
         writer.silverLayerWithBboxIndexing(
                 table(database, table),
@@ -156,6 +172,26 @@ public class SpatialBricks {
                 maxPartitionSize);
     }
 
+    public void writeWithIndex(
+            String database,
+            String table,
+            String inputPath,
+            String columnx,
+            String columny,
+            long driverRows,
+            long maxPartitionSize
+
+    ) throws Exception {
+        writer.customWriter(
+                table(database, table),
+                inputPath,
+                driverRows,
+                maxPartitionSize,
+                columnx, columny
+        );
+    }
+
+
     /*----------------------------------------------------
      * Indexing
      *---------------------------------------------------*/
@@ -165,7 +201,7 @@ public class SpatialBricks {
             String table,
             long driverRows,
             long maxPartitionSize)
-            throws NoSuchTableException, IOException {
+            throws NoSuchTableException, IOException, ParseException {
 
         index.addIndexToUnindexedRows(
                 table(database, table),
@@ -178,7 +214,7 @@ public class SpatialBricks {
             String table,
             long driverRows,
             long maxPartitionSize)
-            throws NoSuchTableException, IOException {
+            throws NoSuchTableException, IOException, ParseException {
 
         index.updateIndexing(
                 table(database, table),

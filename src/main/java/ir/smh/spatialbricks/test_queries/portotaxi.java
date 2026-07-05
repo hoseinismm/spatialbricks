@@ -86,7 +86,7 @@ public class portotaxi {
             int runs
             ) throws Exception {
 
-        long[][] results = new long[12][runs];
+        long[][] results = new long[9][runs];
 
         for (int i = 0; i < runs; i++) {
 
@@ -99,11 +99,9 @@ public class portotaxi {
             results[4][i] = testSpeedIndexed(flattenSilverUnindexed, new FlattenSpatialParquet(spark), false);
             results[5][i] = testSpeedIndexed(flattenSilverIndexed, new FlattenSpatialParquet(spark), true);
             results[6][i] = testConvertionToGeometry(wkbUnindexed,new WKBIndexedParquet(spark));
-            results[7][i] = testConvertionToGeometry(wkbIndexed,new WKBIndexedParquet(spark));
-            results[8][i] = testConvertionToGeometry(silverUnindexed,new SpatialParquet(spark));
-            results[9][i] = testConvertionToGeometry(silverIndexed,new SpatialParquet(spark));
-            results[10][i] = testConvertionToGeometry(flattenSilverUnindexed,new FlattenSpatialParquet(spark));
-            results[11][i] = testConvertionToGeometry(flattenSilverIndexed,new FlattenSpatialParquet(spark));
+            results[7][i] = testConvertionToGeometry(silverUnindexed,new SpatialParquet(spark));
+            results[8][i] = testConvertionToGeometry(flattenSilverUnindexed,new FlattenSpatialParquet(spark));
+
         }
         return results;
     }
@@ -119,14 +117,12 @@ public class portotaxi {
                 "Flatten Unindexed",
                 "Flatten Indexed",
                 "WKB Unindexed",
-                "WKB Indexed",
                 "Spatial Unindexed",
-                "Spatial Indexed",
                 "Flatten Unindexed",
-                "Flatten Indexed"
+
         };
 
-        try (PrintWriter out = new PrintWriter("benchmarkporto2.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmarkporto20.csv")) {
 
             out.print("Test");
 
@@ -205,14 +201,16 @@ public class portotaxi {
                             .and(col("geometry.bbox_partitioning.max_y").gt(41.15))
             );
 
-        result = result
-                .withColumn("geom", callUDF("multiPointToLine", col("geometry")))
-                .filter(
-                        callUDF("ST_X", callUDF("ST_PointN", col("geom"), lit(1))).between(-8.62, -8.56)
-                                .and(callUDF("ST_Y", callUDF("ST_PointN", col("geom"), lit(1))).between(41.15, 41.19))
-                                .and(callUDF("ST_Length", col("geom")).gt(0.1))
-                )
-                .agg(count("*").alias("number"));
+            result = result
+                    .filter(
+                            callUDF("ST_X", callUDF("ST_Centroid", col("geometry")))
+                                    .between(-8.62, -8.56)
+                                    .and(
+                                            callUDF("ST_Y", callUDF("ST_Centroid", col("geometry")))
+                                                    .between(41.15, 41.19)
+                                    )
+                    )
+                    .agg(count("*").alias("number"));
         }
         result.show(false);
 
@@ -224,6 +222,8 @@ public class portotaxi {
     }
 
     public static long testConvertionToGeometry(TableSpec silver, UDFRegistry<?,?> udfRegistry) throws Exception {
+
+        new MultipointToLine(spark, udfRegistry).registerLineFromMultiPoint();
 
         udfRegistry.registerDecode();
 
@@ -238,19 +238,24 @@ public class portotaxi {
                 .select(
                         callUDF(
                                 "ST_Distance",
-                                callUDF("ST_GeometryN", col("geom"), lit(0)),
                                 callUDF(
-                                        "ST_GeometryN",
-                                        col("geom"),
-                                        callUDF("ST_NumGeometries", col("geom")).minus(lit(1))
+                                        "ST_Point",
+                                        callUDF("ST_XMin", col("geom")),
+                                        callUDF("ST_YMin", col("geom"))
+                                ),
+                                callUDF(
+                                        "ST_Point",
+                                        callUDF("ST_XMax", col("geom")),
+                                        callUDF("ST_YMax", col("geom"))
                                 )
-                        ).alias("dist")
+                        ).alias("diagonal")
                 )
-                .agg(avg("dist"))
+                .agg(avg("diagonal"))
                 .show();
-        System.out.println("Iceberg"+fullName+" decode time = " + (System.currentTimeMillis() - start));
 
         long duration = System.currentTimeMillis() - start;
+
+        System.out.println("Iceberg"+fullName+" decode time = " + duration);
 
         return  duration;
     }

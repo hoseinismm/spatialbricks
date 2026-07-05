@@ -1,5 +1,7 @@
 package ir.smh.spatialbricks.create_datasets;
 
+import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
+import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
 import ir.smh.spatialbricks.core.SpatialWriting;
@@ -7,6 +9,9 @@ import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.udf.FlattenSpatialParquet;
 import ir.smh.spatialbricks.udf.SpatialParquet;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.spark.Spark3Util;
+import org.apache.iceberg.spark.actions.SparkActions;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 
@@ -31,6 +36,8 @@ public class CreateNYCtaxi {
 
         SedonaContext.create(spark);
 
+        GeometryReader<?> geometryReader = new WKBReaderAdapter();
+
         SpatialWriting spatialWriting= new SpatialWriting(spark, null, new SpatialParquet(spark));
 
         SpatialWriting flattenspatialwriting = new SpatialWriting(spark, null, new FlattenSpatialParquet(spark));
@@ -45,14 +52,16 @@ public class CreateNYCtaxi {
         TableSpec flattenSilverUnindexed = new TableSpec("flattenSilverUnindexed", "nyc_taxi", folderpath);
         TableSpec flattenSilverIndexed = new TableSpec("flattenSilverIndexed", "nyc_taxi",folderpath);
         TableSpec Sorted = new TableSpec("Sorted", "nyc_taxi","");
+        TableSpec flattenSilverIndexedIncremental = new TableSpec("flattenSilverIndexedIncremental", "nyc_taxi",folderpath);
 
         String path =   "../datasets/nyc_taxi/yellow_tripdata_2009-0?.parquet";
+        //String path= "../datasets/nyc_taxi/output_parts/part_*.parquet";
 
         long startTime = System.currentTimeMillis();
 
 //        wkbWriting.customWriterWithoutBboxIndex(wkbUnindexed,path, "Start_Lon","Start_Lat");
 //        wkbWriting.customWriterWithoutBboxIndex(wkbUnindexed,path, "End_Lon","End_Lat");
-
+//
 //        wkbWriting.customWriter(wkbIndexed,path,150000L, 131072L, "Start_Lon","Start_Lat");
 //        wkbWriting.customWriter(wkbIndexed,path,150000L, 131072L, "End_Lon","End_Lat");
 
@@ -62,10 +71,23 @@ public class CreateNYCtaxi {
 
 //        spatialWriting.customWriterWithoutBboxIndex(silverUnindexed,path, "Start_Lon","Start_Lat");
 //        spatialWriting.customWriterWithoutBboxIndex(silverUnindexed,path, "End_Lon","End_Lat");
-//
-//        flattenspatialwriting.customWriter(flattenSilverIndexed,path,150000L, 131072L, "Start_Lon","Start_Lat");
-//
-//        flattenspatialwriting.customWriter(flattenSilverIndexed,path,150000L, 131072L, "End_Lon","End_Lat");
+
+        flattenspatialwriting.customWriter(flattenSilverIndexed,path,150000L, 131072L, "Start_Lon","Start_Lat");
+        flattenspatialwriting.customWriter(flattenSilverIndexed,path,150000L, 131072L, "End_Lon","End_Lat");
+//                Table table = Spark3Util.loadIcebergTable(
+//                        spark,
+//                        "flattenSilverIndexed.nyc_taxi");
+//                SparkActions
+//                        .get(spark)
+//                        .rewriteDataFiles(table)
+//                        .execute();
+//                SparkActions.get(spark)
+//                        .expireSnapshots(table)
+//                        .expireOlderThan(System.currentTimeMillis())
+//                        .execute();
+//                SparkActions.get(spark)
+//                        .deleteOrphanFiles(table)
+//                        .execute();
 
 //        flattenspatialwriting.customWriterWithoutBboxIndex(flattenSilverUnindexed,path, "Start_Lon","Start_Lat");
 
@@ -89,6 +111,37 @@ public class CreateNYCtaxi {
 
 //        System.out.println("Press ENTER to exit...");
 //        System.in.read();
+
+//
+//                for (int i = 0; i < 100; i++) {
+//                    path = String.format(
+//                            "../datasets/nyc_taxi/output_parts/part_%06d.parquet",
+//                            i);
+//
+//                    System.out.println(path);
+//
+//                    flattenspatialwriting.customWriter(flattenSilverIndexedIncremental, path, 150000L, 131072L, "Start_Lon", "Start_Lat");
+//                    flattenspatialwriting.customWriter(flattenSilverIndexedIncremental, path, 150000L, 131072L, "End_Lon", "End_Lat");
+//
+//                    if ((i + 1) % 20 == 0) {
+//                        Table table = Spark3Util.loadIcebergTable(
+//                                spark,
+//                                "flattenSilverIndexedIncremental.nyc_taxi"
+//                        );
+//                        SparkActions
+//                                .get(spark)
+//                                .rewriteDataFiles(table)
+//                                .execute();
+//                        SparkActions.get(spark)
+//                                .expireSnapshots(table)
+//                                .expireOlderThan(System.currentTimeMillis())
+//                                .execute();
+//                        SparkActions.get(spark)
+//                                .expireSnapshots(table)
+//                                .expireOlderThan(System.currentTimeMillis())
+//                                .execute();
+//                    }
+//                }
 
                 long duration = System.currentTimeMillis() - startTime;
 

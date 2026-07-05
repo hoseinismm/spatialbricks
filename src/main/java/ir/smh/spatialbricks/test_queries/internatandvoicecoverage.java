@@ -76,16 +76,13 @@ public class internatandvoicecoverage {
 
     private static long[][] runBenchmarks( int runs ) throws Exception {
 
-        long[][] results = new long[12][runs];
+        long[][] results = new long[9][runs];
 
         for (int i = 0; i < runs; i++) {
 
                 System.out.println("Run " + (i + 1));
 
 
-                spark.catalog().clearCache();
-                System.gc();
-                Thread.sleep(3000);
                 results[0][i] = testQuery(wkbUnindexed, wkbRegistry, false);
                 spark.catalog().clearCache();
                 System.gc();
@@ -114,23 +111,14 @@ public class internatandvoicecoverage {
                 spark.catalog().clearCache();
                 System.gc();
                 Thread.sleep(3000);
-                results[7][i] = testDecode(wkbIndexed, wkbRegistry);
+                results[7][i] = testDecode(silverUnindexed, spatialRegistry);
                 spark.catalog().clearCache();
                 System.gc();
                 Thread.sleep(3000);
-                results[8][i] = testDecode(silverUnindexed, spatialRegistry);
+                results[8][i] = testDecode( flattenSilverUnindexed, flattenRegistry);
                 spark.catalog().clearCache();
                 System.gc();
                 Thread.sleep(3000);
-                results[9][i] = testDecode(silverIndexed, spatialRegistry);
-                spark.catalog().clearCache();
-                System.gc();
-                Thread.sleep(3000);
-                results[10][i] = testDecode( flattenSilverUnindexed, flattenRegistry);
-                spark.catalog().clearCache();
-                System.gc();
-                Thread.sleep(3000);
-                results[11][i] = testDecode( flattenSilverIndexed, flattenRegistry);
 
         }
 
@@ -148,14 +136,12 @@ public class internatandvoicecoverage {
                 "Flatten Unindexed",
                 "Flatten Indexed",
                 "WKB Unindexed",
-                "WKB Indexed",
                 "Spatial Unindexed",
-                "Spatial Indexed",
-                "Flatten Unindexed",
-                "Flatten Indexed"
+                "Flatten Unindexed"
+
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark_internet_and_voice_coverage6.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmark12_internet_and_voice_coverage6.csv")) {
 
             out.print("Test");
 

@@ -80,7 +80,7 @@ public class msbuildings {
 
     private static long[][] runBenchmarks( int runs ) throws Exception {
 
-        long[][] results = new long[12][runs];
+        long[][] results = new long[9][runs];
 
         for (int i = 0; i < runs; i++) {
 
@@ -88,16 +88,14 @@ public class msbuildings {
 
             results[0][i] = testQuery(wkbUnindexed,false,wkbRegistry);
             results[1][i] = testQuery( wkbIndexed, true, wkbRegistry);
-            results[2][i] =0;// testQuery( silverUnindexed,false,spatialRegistry);
-            results[3][i] =0;// testQuery( silverIndexed, true, spatialRegistry);
-            results[4][i] =0;// testQuery( flattenSilverUnindexed,false, flattenRegistry);
-            results[5][i] =0;// testQuery( flattenSilverIndexed, true, flattenRegistry);
+            results[2][i] = testQuery( silverUnindexed,false,spatialRegistry);
+            results[3][i] = testQuery( silverIndexed, true, spatialRegistry);
+            results[4][i] = testQuery( flattenSilverUnindexed,false, flattenRegistry);
+            results[5][i] = testQuery( flattenSilverIndexed, true, flattenRegistry);
             results[6][i] = testDecode( wkbUnindexed, wkbRegistry);
-            results[7][i] = testDecode( wkbIndexed,wkbRegistry);
-            results[8][i] =0;// testDecode( silverUnindexed, spatialRegistry);
-            results[9][i] =0;// testDecode( silverIndexed, spatialRegistry);
-            results[10][i] =0;// testDecode( flattenSilverUnindexed, flattenRegistry);
-            results[11][i] =0;// testDecode( flattenSilverIndexed, flattenRegistry);
+            results[7][i] = testDecode( silverUnindexed, spatialRegistry);
+            results[8][i] = testDecode( flattenSilverUnindexed, flattenRegistry);
+
         }
 
         return results;
@@ -114,14 +112,12 @@ public class msbuildings {
                 "Flatten Unindexed",
                 "Flatten Indexed",
                 "WKB Unindexed",
-                "WKB Indexed",
                 "Spatial Unindexed",
-                "Spatial Indexed",
-                "Flatten Unindexed",
-                "Flatten Indexed"
+                "Flatten Unindexed"
+
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark_for_wkbmsbuildings.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmark16_for_wkbmsbuildings.csv")) {
 
             out.print("Test");
 

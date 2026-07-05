@@ -33,7 +33,7 @@ public class aubuildings {
 
             try {
 
-                String path = "../datasets/aubuildings/bronze/aubuildings/output_geoparquet/*.parquet";
+
 
                 TableSpec silverUnindexed = new TableSpec("silverUnindexed", "aubuildings", "");
                 TableSpec silverIndexed = new TableSpec("silverIndexed", "aubuildings", "");
@@ -45,7 +45,6 @@ public class aubuildings {
                 long[][] results = runBenchmarks(
                         spark,
                         runs,
-                        path,
                         silverUnindexed,
                         silverIndexed,
                         flattenSilverUnindexed,
@@ -79,7 +78,6 @@ public class aubuildings {
     private static long[][] runBenchmarks(
             SparkSession spark,
             int runs,
-            String path,
             TableSpec silverUnindexed,
             TableSpec silverIndexed,
             TableSpec flattenSilverUnindexed,
@@ -94,19 +92,15 @@ public class aubuildings {
 
             System.out.println("Run " + (i + 1));
 
-
             results[0][i] = testQuery(spark, wkbUnindexed ,false,new WKBIndexedParquet(spark));
             results[1][i] = testQuery(spark, wkbIndexed,true,new WKBIndexedParquet(spark));
-            results[2][i] =0;// testQuery(spark, silverUnindexed,false,new SpatialParquet(spark));
-            results[3][i] =0;// testQuery(spark, silverIndexed, true, new SpatialParquet(spark));
-            results[4][i] =0;// testQuery(spark, flattenSilverUnindexed,false, new FlattenSpatialParquet(spark) );
-            results[5][i] =0;// testQuery(spark, flattenSilverIndexed, true, new FlattenSpatialParquet(spark) );
+            results[2][i] = testQuery(spark, silverUnindexed,false,new SpatialParquet(spark));
+            results[3][i] = testQuery(spark, silverIndexed, true, new SpatialParquet(spark));
+            results[4][i] = testQuery(spark, flattenSilverUnindexed,false, new FlattenSpatialParquet(spark) );
+            results[5][i] = testQuery(spark, flattenSilverIndexed, true, new FlattenSpatialParquet(spark) );
             results[6][i] = testDecode(spark, wkbUnindexed, new WKBIndexedParquet(spark));
-            results[7][i] = testDecode(spark, wkbIndexed, new WKBIndexedParquet(spark));
-            results[8][i] =0;// testDecode(spark, silverUnindexed, new SpatialParquet(spark));
-            results[9][i] =0;// testDecode(spark, silverIndexed, new SpatialParquet(spark));
-            results[10][i] =0;// testDecode(spark, flattenSilverUnindexed, new FlattenSpatialParquet(spark));
-            results[11][i] =0;// testDecode(spark, flattenSilverIndexed, new FlattenSpatialParquet(spark));
+            results[7][i] = testDecode(spark, silverUnindexed, new SpatialParquet(spark));
+            results[8][i] = testDecode(spark, flattenSilverUnindexed, new FlattenSpatialParquet(spark));
 
         }
 
@@ -124,15 +118,11 @@ public class aubuildings {
                 "Flatten Unindexed",
                 "Flatten Indexed",
                 "WKB Unindexed",
-                "WKB Indexed",
                 "Spatial Unindexed",
-                "Spatial Indexed",
-                "Flatten Unindexed",
-                "Flatten Indexed"
-
+                "Flatten Unindexed"
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark2_for_aubuildings.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmark9_for_aubuildings.csv")) {
 
             out.print("Test");
 

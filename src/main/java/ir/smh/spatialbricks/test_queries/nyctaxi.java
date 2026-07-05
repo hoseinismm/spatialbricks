@@ -52,6 +52,9 @@ public class nyctaxi {
     private static final TableSpec flattenSilverIndexed =
             new TableSpec("flattenSilverIndexed", "nyc_taxi", "");
 
+    private static final TableSpec flattenSilverIndexedIncremental =
+            new TableSpec("flattenSilverIndexedIncremental", "nyc_taxi", "");
+
     public static void main(String[] args) throws Exception {
 
         try {
@@ -78,7 +81,7 @@ public class nyctaxi {
         }
     }
 
-    private static long[][] runBenchmarks( int runs) throws Exception {
+    private static long[][] runBenchmarks( int runs) throws IOException {
 
         long[][] results = new long[12][runs];
 
@@ -86,19 +89,18 @@ public class nyctaxi {
 
             System.out.println("Run " + (i + 1));
 
-
-            results[0][i] = testQuery(wkbUnindexed, GeometryFormat.WKB,false);
-            results[1][i] = testQuery(wkbIndexed, GeometryFormat.WKB,true);
-            results[2][i] = testQuery(silverUnindexed,GeometryFormat.SPATIAL,false);
-            results[3][i] = testQuery(silverIndexed,GeometryFormat.SPATIAL,true);
-            results[4][i] = testQuery(flattenSilverUnindexed,GeometryFormat.FLATTEN,false);
-            results[5][i] = testQuery(flattenSilverIndexed,GeometryFormat.FLATTEN,true);
-            results[6][i] = testDecode(wkbUnindexed, wkbRegistry);
-            results[7][i] = testDecode(wkbIndexed, wkbRegistry);
-            results[8][i] = testDecode(silverUnindexed, spatialRegistry);
-            results[9][i] = testDecode(silverIndexed, spatialRegistry);
-            results[10][i] = testDecode(flattenSilverUnindexed, flattenRegistry);
-            results[11][i] = testDecode(flattenSilverIndexed, flattenRegistry);
+            results[0][i] = testQuery2(wkbUnindexed, GeometryFormat.WKB,false);
+            results[1][i] = testQuery2(wkbIndexed, GeometryFormat.WKB,true);
+            results[2][i] =0;// testQuery2(silverUnindexed,GeometryFormat.SPATIAL,false);
+            results[3][i] =0;// testQuery2(silverIndexed,GeometryFormat.SPATIAL,true);
+            results[4][i] =0;// testQuery2(flattenSilverUnindexed,GeometryFormat.FLATTEN,false);
+            results[5][i] =0;// testQuery2(flattenSilverIndexed,GeometryFormat.FLATTEN,true);
+            results[6][i] =0;// testQuery(flattenSilverIndexedIncremental,GeometryFormat.FLATTEN,true);
+            results[7][i] =0;// testDecode2(silverUnindexed);
+            results[8][i] =0;// testDecode3(flattenSilverUnindexed);
+            results[9][i] =0;// testDecode(wkbUnindexed, wkbRegistry);
+            results[10][i] =0;// testDecode(silverUnindexed, spatialRegistry);
+            results[11][i] =0;// testDecode(flattenSilverUnindexed, flattenRegistry);
         }
 
         return results;
@@ -115,15 +117,16 @@ public class nyctaxi {
                 "Spatial Indexed",
                 "Flatten Unindexed",
                 "Flatten Indexed",
+                "Flatten Indexed Incremental",
+                "Spatial Decoded",
+                "Flatten Decoded",
                 "WKB Unindexed",
-                "WKB Indexed",
                 "Spatial Unindexed",
-                "Spatial Indexed",
-                "Flatten Unindexed",
-                "Flatten Indexed"
+                "Flatten Unindexed"
+
         };
 
-        try (PrintWriter out = new PrintWriter("benchmark_for_nyc_taxi6.csv")) {
+        try (PrintWriter out = new PrintWriter("benchmark34_for_nyc_taxi6.csv")) {
 
             out.print("Test");
 
@@ -153,7 +156,7 @@ public class nyctaxi {
     }
 
 
-    private static long testQuery( TableSpec table, GeometryFormat format, boolean indexed)  {
+    private static long testQuery( TableSpec table, GeometryFormat format, boolean indexed) throws IOException {
 
         switch (format) {
             case WKB -> wkbRegistry.registerDecode();
@@ -234,8 +237,79 @@ public class nyctaxi {
 
         System.out.println("Querying from iceberg table time " + duration);
 
+
         return duration;
     }
+
+    private static long testQuery2( TableSpec table, GeometryFormat format, boolean indexed) throws IOException {
+
+        switch (format) {
+            case WKB -> wkbRegistry.registerDecode();
+            case SPATIAL -> spatialRegistry.registerDecode();
+            case FLATTEN -> flattenRegistry.registerDecode();
+        }
+
+        String fromClause;
+        String xExpr;
+        String yExpr;
+
+
+                fromClause = """
+                    (
+                        SELECT
+                            decodeGeometry(geometry) AS geom,
+                            geometry
+                        FROM %s
+                    ) t
+                    """.formatted(table.database() + "." + table.table());
+
+                xExpr = "ST_X(geom)";
+                yExpr = "ST_Y(geom)";
+
+
+
+        String bboxFilter = indexed
+                ? """
+              AND NOT (
+                  geometry.bbox_partitioning.max_x < -73.90 AND
+                  geometry.bbox_partitioning.min_x > -74.02 AND
+                  geometry.bbox_partitioning.max_y < 40.88 AND
+                  geometry.bbox_partitioning.min_y > 40.70
+              )
+              """
+                : "";
+
+        String sql = """
+            SELECT COUNT(*) AS number
+            FROM %s
+            WHERE
+            (
+                %s < -74.02 OR
+                %s > -73.90 OR
+                %s < 40.70 OR
+                %s > 40.88
+            )
+            %s
+            """.formatted(
+                fromClause,
+                xExpr,
+                xExpr,
+                yExpr,
+                yExpr,
+                bboxFilter
+        );
+
+        long t1 = System.currentTimeMillis();
+
+        spark.sql(sql).show(false);
+
+        long duration = System.currentTimeMillis() - t1;
+
+        System.out.println("Querying from iceberg table time " + duration);
+
+        return duration;
+    }
+
 
     public static long testDecode(TableSpec table, UDFRegistry<?,?> udfregistry)  {
 
@@ -266,6 +340,56 @@ public class nyctaxi {
 
         return duration;
     }
+
+    public static long testDecode2(TableSpec table)  {
+
+        Dataset<Row> t = spark.read()
+                .format("iceberg")
+                .load(table.database() + "." + table.table());
+
+        long start = System.currentTimeMillis();
+
+        t.selectExpr(
+                        "geometry.parts[0].coordinates[0].x - geometry.parts[0].coordinates[0].y as diff"
+                )
+                .agg(expr("sum(diff)"))
+                .show();
+
+        long duration = System.currentTimeMillis() - start;
+
+        System.out.println(
+                "Spatial unindexed without decode" + " , query time = "
+                        + duration);
+
+        return duration;
+    }
+
+
+    public static long testDecode3(TableSpec table)  {
+
+        Dataset<Row> t = spark.read()
+                .format("iceberg")
+                .load(table.database() + "." + table.table());
+
+        long start = System.currentTimeMillis();
+
+        t.selectExpr(
+                        "geometry.x[0] - geometry.y[0] as diff"
+                )
+                .agg(expr("sum(diff)"))
+                .show();
+
+        long duration = System.currentTimeMillis() - start;
+
+        System.out.println(
+                "Flatten unindexed without decode" + " , query time = "
+                        + duration);
+
+        return duration;
+    }
+
+
+
 }
 
 
