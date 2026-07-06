@@ -16,15 +16,15 @@ import java.util.List;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.sum;
 
-public class BucketServiceForBboxIndexing {
+public class BucketService {
 
     private final SparkSession spark;
 
-    public BucketServiceForBboxIndexing(SparkSession spark) {
+    public BucketService(SparkSession spark) {
         this.spark = spark;
     }
 
-    public Long updateBucket(TableSpec silver) throws NoSuchTableException, ParseException {
+    public void updateBucket(TableSpec silver) throws NoSuchTableException, ParseException {
 
         String fullName = silver.database() + "." + silver.table();
         String metadataTable = fullName + ".partitions";
@@ -38,10 +38,10 @@ public class BucketServiceForBboxIndexing {
             File f = new File(bucketPath);
             if (!f.exists()) {
                 System.out.println("Bucket " + bucketFileName + " does not exist to update");
-                return null;
+                return;
             }
 
-            BucketManagerForBboxIndexing.Bucket bucket = BucketManagerForBboxIndexing.loadBucket(bucketPath);
+            BucketManager.Bucket bucket = BucketManager.loadBucket(bucketPath);
 
             Table table = Spark3Util.loadIcebergTable(
                     spark,
@@ -57,7 +57,7 @@ public class BucketServiceForBboxIndexing {
                 System.out.println(
                         "Table has no current snapshot. Bucket cannot be updated."
                 );
-                return null;
+                return;
             }
             long id = snapshot.snapshotId();
 
@@ -81,24 +81,14 @@ public class BucketServiceForBboxIndexing {
 
                 List<Row> partitionStats = stats.collectAsList();
 
-                long totalRowsHint = 0L;
-
-                for (Row row : partitionStats) {
-                    Long count = row.getAs("total_count");
-                    if (count != null) {
-                        totalRowsHint += count;
-                    }
-                }
-
-
 //        System.out.println("partition metadata"+partitionStats);
 
-                BucketManagerForBboxIndexing.updateTreeFromStats(partitionStats, bucket);
+                BucketManager.updateTreeFromStats(partitionStats, bucket);
 
-                BucketManagerForBboxIndexing.saveBucket(bucket, bucketPath);
+                BucketManager.saveBucket(bucket, bucketPath);
 
                 System.out.println("Bucket updated to " + bucketFileName);
-                return totalRowsHint;
+                return;
             } else {
                 System.out.println("""
             Bucket snapshot differs from the current table snapshot.
@@ -110,6 +100,5 @@ public class BucketServiceForBboxIndexing {
             The table does not exist. If a bucket file is present,
             it will be ignored.
             """);
-        return null;
     }
 }

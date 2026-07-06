@@ -8,7 +8,7 @@ import java.io.Serializable;
 
 import static org.apache.spark.sql.functions.*;
 
-public class SpatialTransformerForConvertGeometry implements Serializable {
+public class GeometryTransformer implements Serializable {
 
     static Dataset<Row> transform(
             Dataset<Row> df,

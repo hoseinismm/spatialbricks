@@ -1,7 +1,6 @@
 package ir.smh.spatialbricks.udf;
 
-import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
-import ir.smh.spatialbricks.core.TableSpec;
+import ir.smh.spatialbricks.core.BucketManager;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -13,7 +12,7 @@ import org.locationtech.jts.io.ParseException;
 public interface UDFRegistry<T,U> {
     DataType getGeometryType();
     void registerGeometryUdf(GeometryReader<?> adapter);
-    void registerBucketUdf(Broadcast<BucketManagerForBboxIndexing.Bucket> broadcast);
+    void registerBucketUdf(Broadcast<BucketManager.Bucket> broadcast);
     void registerBboxUdf();
     void registerDecode();
     Dataset<Row> addPointGeometryColumn(

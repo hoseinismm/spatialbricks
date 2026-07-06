@@ -1,8 +1,6 @@
 package ir.smh.spatialbricks.core;
 
 import ir.smh.spatialbricks.createsql.IcebergTableCreatorWithPartitioning;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.spark.Spark3Util;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -10,16 +8,13 @@ import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.catalyst.parser.ParseException;
 import org.apache.spark.sql.types.StructType;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
-public class SilverBboxWriter {
+public class TableWriter {
 
     private final SparkSession spark;
 
-    public SilverBboxWriter(SparkSession spark) {
+    public TableWriter(SparkSession spark) {
         this.spark = spark;
     }
 
@@ -32,7 +27,7 @@ public class SilverBboxWriter {
 
         if (!exists) {
             System.out.println("Now creating silver table with ID column...");
-//            transformed.printSchema();
+            transformed.printSchema();
             IcebergTableCreatorWithPartitioning.createIcebergTableFromSchema(
                     spark,
                     transformed.schema(),

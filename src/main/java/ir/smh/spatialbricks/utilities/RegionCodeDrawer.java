@@ -1,7 +1,7 @@
 package ir.smh.spatialbricks.utilities;
 
 
-import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
+import ir.smh.spatialbricks.core.BucketManager;
 import org.locationtech.jts.geom.*;
 
 import java.io.IOException;
@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.regex.*;
 
 
-import static ir.smh.spatialbricks.core.BucketManagerForBboxIndexing.decode;
-import static ir.smh.spatialbricks.core.BucketManagerForBboxIndexing.initialBucket;
-import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing.Bucket;
+import static ir.smh.spatialbricks.core.BucketManager.decode;
+
+import ir.smh.spatialbricks.core.BucketManager.Bucket;
 import org.wololo.geojson.GeoJSON;
 import org.wololo.jts2geojson.GeoJSONWriter;
 
@@ -74,7 +74,7 @@ public class RegionCodeDrawer {
     public static void main(String[] args) throws IOException {
         GeometryFactory gf = new GeometryFactory();
 
-        Bucket root = BucketManagerForBboxIndexing.loadBucket(
+        Bucket root = BucketManager.loadBucket(
                 "D:\\payannameh\\datasets\\nyc_taxi\\bucket_flattenSilverIndexed_nyc_taxi.gz"
         );
 

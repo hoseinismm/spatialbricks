@@ -3,7 +3,6 @@ package ir.smh.spatialbricks.core;
 import ir.smh.spatialbricks.udf.UDFRegistry;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.spark.Spark3Util;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -23,7 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.Files;
 
-public class BucketManagerForBboxIndexing {
+public class BucketManager {
 
     public static void addGeosToBuckets(
             List<Row> rows,
@@ -219,7 +218,6 @@ public class BucketManagerForBboxIndexing {
             TableSpec silver,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
-            Long totalRowsHint,
             UDFRegistry<?,?> udfRegistry) throws NoSuchTableException, ParseException {
 
         Path bucketPath = Paths.get(
@@ -231,10 +229,7 @@ public class BucketManagerForBboxIndexing {
                 )
         );
 
-        long totalRows =
-                totalRowsHint != null
-                        ? totalRowsHint
-                        : df.count();
+        long totalRows = df.count();
 
         double fraction =
                 Math.min(
@@ -242,9 +237,7 @@ public class BucketManagerForBboxIndexing {
                         (double) rowsCapableOfProcessingByDriver / totalRows
                 );
 
-        udfRegistry.registerBboxUdf(
-
-        );
+        udfRegistry.registerBboxUdf();
 
         Dataset<Row> bboxDf = df
                 .sample(false, fraction)

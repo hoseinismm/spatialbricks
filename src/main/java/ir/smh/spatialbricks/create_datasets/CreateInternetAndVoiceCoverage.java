@@ -3,7 +3,7 @@ package ir.smh.spatialbricks.create_datasets;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
-import ir.smh.spatialbricks.core.SpatialWriting;
+import ir.smh.spatialbricks.core.PipelineExecutor;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
@@ -37,11 +37,11 @@ public class CreateInternetAndVoiceCoverage {
 
         GeometryReader<?>  geoJsonFile= new GeoJsonGeometricalAdapter();
 
-        SpatialWriting wkbWriting = new SpatialWriting(spark,geoJsonFile, new WKBIndexedParquet(spark)  );
+        PipelineExecutor wkbWriting = new PipelineExecutor(spark,geoJsonFile, new WKBIndexedParquet(spark)  );
 
-        SpatialWriting spatialWriting = new SpatialWriting(spark,geoJsonFile, new SpatialParquet(spark));
+        PipelineExecutor spatialWriting = new PipelineExecutor(spark,geoJsonFile, new SpatialParquet(spark));
 
-        SpatialWriting flattenSpatialWriting = new SpatialWriting(spark,geoJsonFile, new FlattenSpatialParquet(spark)  );
+        PipelineExecutor flattenSpatialWriting = new PipelineExecutor(spark,geoJsonFile, new FlattenSpatialParquet(spark)  );
 
         String path = String.format("../datasets/internet_and_voice_coverage/F477_Voice_1412b.geojson");
 
@@ -58,7 +58,7 @@ public class CreateInternetAndVoiceCoverage {
 
 //          wkbWriting.silverLayerWithoutBboxIndexing(wkbUnindexed, path );
 
-          wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 68L, 32L );
+          wkbWriting.AddDataWithIndexing(wkbIndexed, path, 68L, 32L );
 
 //        spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path );
 

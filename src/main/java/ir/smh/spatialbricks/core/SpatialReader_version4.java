@@ -22,14 +22,14 @@ import org.wololo.jts2geojson.GeoJSONReader;
 import java.io.Serializable;
 import java.util.*;
 
-public class SpatialInputReader_version4 implements Serializable {
+public class SpatialReader_version4 implements Serializable {
 
     private final SparkSession spark;
 
     private static final ThreadLocal<GeoJSONReader> GEOJSON_READER =
             ThreadLocal.withInitial(GeoJSONReader::new);
 
-    public SpatialInputReader_version4(SparkSession spark) {
+    public SpatialReader_version4(SparkSession spark) {
         this.spark = spark;
     }
 

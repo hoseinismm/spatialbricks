@@ -1,7 +1,7 @@
 package ir.smh.spatialbricks.udf;
 
-import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
-import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing.Bucket;
+import ir.smh.spatialbricks.core.BucketManager;
+import ir.smh.spatialbricks.core.BucketManager.Bucket;
 import ir.smh.spatialbricks.decoder.WKBParquetDecoder;
 import ir.smh.spatialbricks.encoder.GeometryResult;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
@@ -165,7 +165,7 @@ public class WKBIndexedParquet implements UDFRegistry<byte[],byte[]>, Serializab
                         return RowFactory.create(null, null, null, null, null);
                     }
 
-                    BucketManagerForBboxIndexing.Bucket bucket =
+                    BucketManager.Bucket bucket =
                             findBucket(
                                     root,
                                     bbox[0],

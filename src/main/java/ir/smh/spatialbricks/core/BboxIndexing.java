@@ -13,10 +13,10 @@ import java.io.Serializable;
 
 import static org.apache.spark.sql.functions.*;
 
-public class SpatialTransformerForBboxIndexing implements Serializable {
+public class BboxIndexing implements Serializable {
 
     static Dataset<Row> transform(
-            BucketManagerForBboxIndexing.Bucket rootBucket,
+            BucketManager.Bucket rootBucket,
             Dataset<Row> df,
             JavaSparkContext jsc,
             UDFRegistry<?,?> udfRegistry
@@ -26,7 +26,7 @@ public class SpatialTransformerForBboxIndexing implements Serializable {
         //System.out.println("Row count n3 = " + n3);
 
 
-        Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets =
+        Broadcast<BucketManager.Bucket> broadcastRootBuckets =
                 jsc.broadcast(rootBucket);
 
         udfRegistry.registerBucketUdf(

@@ -3,7 +3,7 @@ package ir.smh.spatialbricks.create_datasets;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
-import ir.smh.spatialbricks.core.SpatialWriting;
+import ir.smh.spatialbricks.core.PipelineExecutor;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
@@ -36,14 +36,14 @@ public class CreateMsBuildings {
 
                 GeometryReader<?> geoJsonFile = new GeoJsonGeometricalAdapter();
 
-                SpatialWriting wkbWriting =
-                        new SpatialWriting(spark, geoJsonFile, new WKBIndexedParquet(spark));
+                PipelineExecutor wkbWriting =
+                        new PipelineExecutor(spark, geoJsonFile, new WKBIndexedParquet(spark));
 
-                SpatialWriting spatialWriting =
-                        new SpatialWriting(spark, geoJsonFile, new SpatialParquet(spark));
+                PipelineExecutor spatialWriting =
+                        new PipelineExecutor(spark, geoJsonFile, new SpatialParquet(spark));
 
-                SpatialWriting flattenSpatialWriting =
-                        new SpatialWriting(spark, geoJsonFile, new FlattenSpatialParquet(spark));
+                PipelineExecutor flattenSpatialWriting =
+                        new PipelineExecutor(spark, geoJsonFile, new FlattenSpatialParquet(spark));
 
                 String path = "../datasets/msbuildings/MSBuildingsndjson.geojson";
 
@@ -77,7 +77,7 @@ public class CreateMsBuildings {
 
 //                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
 
-                flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed, path, 150000L, 131072L);
+                flattenSpatialWriting.AddDataWithIndexing(flattenSilverIndexed, path, 150000L, 131072L);
 
                 long duration = System.currentTimeMillis() - startTime;
 

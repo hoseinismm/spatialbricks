@@ -1,7 +1,7 @@
 package ir.smh.spatialbricks.create_datasets;
 
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
-import ir.smh.spatialbricks.core.SpatialWriting;
+import ir.smh.spatialbricks.core.PipelineExecutor;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
@@ -33,9 +33,9 @@ public class CreatePortoTaxiFromChuncedParquetFiles {
 
         UDFRegistry udfRegistry=new FlattenSpatialParquet(spark);
 
-        SpatialWriting spatialWriting= new SpatialWriting(spark,geoparqetFile );
+        PipelineExecutor spatialWriting= new PipelineExecutor(spark,geoparqetFile );
 
-        SpatialWriting flattenSpatialWriting= new SpatialWriting(spark,geoparqetFile, udfRegistry );
+        PipelineExecutor flattenSpatialWriting= new PipelineExecutor(spark,geoparqetFile, udfRegistry );
 
         TableSpec silverIndexed = new TableSpec("silverIndexed", "portotaxi", folderpath);
 

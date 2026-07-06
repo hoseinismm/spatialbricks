@@ -1,7 +1,7 @@
 package ir.smh.spatialbricks.create_datasets;
 
 import ir.smh.spatialbricks.config.SparkConfig;
-import ir.smh.spatialbricks.core.SpatialWriting;
+import ir.smh.spatialbricks.core.PipelineExecutor;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
@@ -35,13 +35,13 @@ public class CreateAuBuildings {
 
                 GeometryReader<?> geoJsonFile = new GeoJsonGeometricalAdapter();
 
-                SpatialWriting spatialWriting =
-                        new SpatialWriting(spark, geoJsonFile, new SpatialParquet(spark));
+                PipelineExecutor spatialWriting =
+                        new PipelineExecutor(spark, geoJsonFile, new SpatialParquet(spark));
 
-                SpatialWriting flattenSpatialWriting =
-                        new SpatialWriting(spark, geoJsonFile, new FlattenSpatialParquet(spark));
+                PipelineExecutor flattenSpatialWriting =
+                        new PipelineExecutor(spark, geoJsonFile, new FlattenSpatialParquet(spark));
 
-                SpatialWriting wkbWriting = new SpatialWriting(spark, geoJsonFile, new WKBIndexedParquet(spark));
+                PipelineExecutor wkbWriting = new PipelineExecutor(spark, geoJsonFile, new WKBIndexedParquet(spark));
 
                 String path = "../datasets/aubuildings/AUBuildingsndjson.geojson";
 
@@ -65,17 +65,17 @@ public class CreateAuBuildings {
 
                 long startTime = System.currentTimeMillis();
 
-//                spatialWriting.bronzeLayerBinary(bronze, path);
 
-//                wkbWriting.silverLayerWithoutBboxIndexing(wkbUnindexed, path);
+
+//                wkbWriting.AddDataWithoutIndexing(wkbUnindexed, path);
 
 //                wkbWriting.silverLayerWithBboxIndexing(wkbIndexed, path, 150000L, 131072L);
 
-//                spatialWriting.silverLayerWithoutBboxIndexing(silverUnindexed, path);
+//                spatialWriting.AddDataWithoutIndexing(silverUnindexed, path);
 
 //                spatialWriting.silverLayerWithBboxIndexing(silverIndexed, path, 150000L, 131072L);
 
-//                flattenSpatialWriting.silverLayerWithoutBboxIndexing(flattenSilverUnindexed, path);
+                flattenSpatialWriting.AddDataWithoutIndexing(flattenSilverUnindexed, path);
 
 //                flattenSpatialWriting.silverLayerWithBboxIndexing(flattenSilverIndexed, path, 150000L, 131072L);
 

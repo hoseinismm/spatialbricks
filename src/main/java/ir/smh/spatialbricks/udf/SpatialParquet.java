@@ -1,6 +1,6 @@
 package ir.smh.spatialbricks.udf;
 
-import ir.smh.spatialbricks.core.BucketManagerForBboxIndexing;
+import ir.smh.spatialbricks.core.BucketManager;
 import ir.smh.spatialbricks.decoder.SpatialParquetDecoder;
 import ir.smh.spatialbricks.encoder.converttogeometry.*;
 import org.apache.spark.broadcast.Broadcast;
@@ -187,9 +187,9 @@ public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>
     // =========================================================
 
     public void registerBucketUdf(
-                                  Broadcast<BucketManagerForBboxIndexing.Bucket> broadcast) {
+                                  Broadcast<BucketManager.Bucket> broadcast) {
 
-        BucketManagerForBboxIndexing.Bucket root = broadcast.value();
+        BucketManager.Bucket root = broadcast.value();
 
         spark.udf().register(
                 "findBucket",
@@ -201,7 +201,7 @@ public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>
                         return RowFactory.create(null, null, null, null, null);
                     }
 
-                    BucketManagerForBboxIndexing.Bucket bucket =
+                    BucketManager.Bucket bucket =
                             findBucket(root, bbox[0], bbox[1], bbox[2], bbox[3]);
 
                     return RowFactory.create(
@@ -270,8 +270,8 @@ public class SpatialParquet implements UDFRegistry<Geometry,Map<String, Object>>
         return new double[]{minX, minY, maxX, maxY};
     }
 
-    private BucketManagerForBboxIndexing.Bucket findBucket(
-            BucketManagerForBboxIndexing.Bucket bucket,
+    private BucketManager.Bucket findBucket(
+            BucketManager.Bucket bucket,
             double minX,
             double minY,
             double maxX,

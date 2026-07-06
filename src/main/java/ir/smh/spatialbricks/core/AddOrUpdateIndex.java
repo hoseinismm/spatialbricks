@@ -15,15 +15,15 @@ import java.io.IOException;
 
 import static org.apache.spark.sql.functions.col;
 
-public class AddOrUpdateBboxIndex {
+public class AddOrUpdateIndex {
 
     private final SparkSession spark;
-    private final BucketServiceForBboxIndexing bucketService;
+    private final BucketService bucketService;
     private final  UDFRegistry<?,?> udfRegistry;
 
-    public AddOrUpdateBboxIndex(SparkSession spark, UDFRegistry<?,?> udfRegistry) {
+    public AddOrUpdateIndex(SparkSession spark, UDFRegistry<?,?> udfRegistry) {
         this.spark = spark;
-        this.bucketService = new BucketServiceForBboxIndexing(spark);
+        this.bucketService = new BucketService(spark);
         this.udfRegistry = udfRegistry;
     }
 
@@ -53,7 +53,7 @@ public class AddOrUpdateBboxIndex {
             return;
         }
 
-        Long totalRowsHint = bucketService.updateBucket(silver);
+        bucketService.updateBucket(silver);
 
         updateIndex(
                 fullName,
@@ -61,7 +61,6 @@ public class AddOrUpdateBboxIndex {
                 silver,
                 rowsCapableOfProcessingByDriver,
                 maxPartitionSize,
-                totalRowsHint,
                 true
         );
 
@@ -101,7 +100,6 @@ public class AddOrUpdateBboxIndex {
                 silver,
                 rowsCapableOfProcessingByDriver,
                 maxPartitionSize,
-                totalRowsHint,
                 false
 
         );
@@ -115,7 +113,6 @@ public class AddOrUpdateBboxIndex {
             TableSpec silver,
             long rowsCapableOfProcessingByDriver,
             long maxPartitionSize,
-            Long totalRowsHint,
             boolean onlyUnindexed
 
     ) throws IOException, NoSuchTableException, ParseException {
@@ -123,17 +120,17 @@ public class AddOrUpdateBboxIndex {
         JavaSparkContext jsc =
                 JavaSparkContext.fromSparkContext(spark.sparkContext());
 
-        BucketManagerForBboxIndexing.Bucket bucket =
-                BucketManagerForBboxIndexing.computeBucketBorders(
+        BucketManager.Bucket bucket =
+                BucketManager.computeBucketBorders(
                         spark,
                         rows,
                         silver,
                         rowsCapableOfProcessingByDriver,
                         maxPartitionSize,
-                        totalRowsHint, udfRegistry
+                        udfRegistry
                 );
 
-        Broadcast<BucketManagerForBboxIndexing.Bucket> broadcastRootBuckets =
+        Broadcast<BucketManager.Bucket> broadcastRootBuckets =
                 jsc.broadcast(bucket);
 
         udfRegistry.registerBucketUdf(

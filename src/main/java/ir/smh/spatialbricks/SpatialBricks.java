@@ -1,7 +1,7 @@
 package ir.smh.spatialbricks;
 
-import ir.smh.spatialbricks.core.AddOrUpdateBboxIndex;
-import ir.smh.spatialbricks.core.SpatialWriting;
+import ir.smh.spatialbricks.core.AddOrUpdateIndex;
+import ir.smh.spatialbricks.core.PipelineExecutor;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
@@ -24,8 +24,8 @@ import java.util.Objects;
 public class SpatialBricks {
 
     private final SparkSession spark;
-    private final AddOrUpdateBboxIndex index;
-    private final SpatialWriting writer;
+    private final AddOrUpdateIndex index;
+    private final PipelineExecutor writer;
 
     public enum InputFormat {
         GEOJSON,
@@ -80,8 +80,8 @@ public class SpatialBricks {
         udfRegistry.registerDecode();
         udfRegistry.registerGeometryUdf(geometryReader);
 
-        this.index = new AddOrUpdateBboxIndex(spark, udfRegistry);
-        this.writer = new SpatialWriting(spark, udfRegistry);
+        this.index = new AddOrUpdateIndex(spark, udfRegistry);
+        this.writer = new PipelineExecutor(spark, udfRegistry);
 
         SedonaContext.create(spark);
     }
@@ -111,7 +111,7 @@ public class SpatialBricks {
             Dataset<Row> df)
             throws NoSuchTableException, ParseException {
 
-        writer.silverLayerWithoutBboxIndexing(
+        writer.AddDataWithoutIndexing(
                 table(database, table),
                 df);
     }
@@ -122,7 +122,7 @@ public class SpatialBricks {
             String inputPath)
             throws Exception {
 
-        writer.silverLayerWithoutBboxIndexing(
+        writer.AddDataWithoutIndexing(
                 table(database, table),
                 inputPath);
     }
@@ -135,7 +135,7 @@ public class SpatialBricks {
             String columny
 
     ) throws Exception {
-        writer.customWriterWithoutBboxIndex(
+        writer.xyToPointTableWithoutIndexing(
                 table(database, table),
                 inputPath,
                 columnx, columny
@@ -150,7 +150,7 @@ public class SpatialBricks {
             long maxPartitionSize)
             throws NoSuchTableException, ParseException {
 
-        writer.silverLayerWithBboxIndexing(
+        writer.AddDataWithIndexing(
                 table(database, table),
                 df,
                 driverRows,
@@ -165,7 +165,7 @@ public class SpatialBricks {
             long maxPartitionSize)
             throws Exception {
 
-        writer.silverLayerWithBboxIndexing(
+        writer.AddDataWithIndexing(
                 table(database, table),
                 inputPath,
                 driverRows,
@@ -182,7 +182,7 @@ public class SpatialBricks {
             long maxPartitionSize
 
     ) throws Exception {
-        writer.customWriter(
+        writer.xyToPintTableWithIndexing(
                 table(database, table),
                 inputPath,
                 driverRows,

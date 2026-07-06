@@ -3,7 +3,7 @@ package ir.smh.spatialbricks.create_datasets;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.udf.WKBIndexedParquet;
 import ir.smh.spatialbricks.utilities.PowerPlanUtil;
-import ir.smh.spatialbricks.core.SpatialWriting;
+import ir.smh.spatialbricks.core.PipelineExecutor;
 import ir.smh.spatialbricks.core.TableSpec;
 import ir.smh.spatialbricks.config.SparkConfigLocal;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
@@ -33,11 +33,11 @@ public class CreatePortoTaxiFromGeoJSON {
 
         GeometryReader<?>  geoparqetFile= new GeoJsonGeometricalAdapter();
 
-        SpatialWriting wkbSpatialWriting= new SpatialWriting(spark,geoparqetFile, new WKBIndexedParquet(spark) );
+        PipelineExecutor wkbSpatialWriting= new PipelineExecutor(spark,geoparqetFile, new WKBIndexedParquet(spark) );
 
-        SpatialWriting spatialWriting= new SpatialWriting(spark,geoparqetFile );
+        PipelineExecutor spatialWriting= new PipelineExecutor(spark,geoparqetFile );
 
-        SpatialWriting flattenSpatialWriting= new SpatialWriting(spark,geoparqetFile, new FlattenSpatialParquet(spark));
+        PipelineExecutor flattenSpatialWriting= new PipelineExecutor(spark,geoparqetFile, new FlattenSpatialParquet(spark));
 
         TableSpec wkbUnindexed = new TableSpec("wkbUnindexed", "portotaxi", folderpath);
 
