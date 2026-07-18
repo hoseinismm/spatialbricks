@@ -34,6 +34,7 @@ public class ParseGeometryForFlatten {
             xcoords[0] = c.x;
             ycoords[0] = c.y;
 
+
         } else if (geometry instanceof MultiPoint mp) {
 
             partlist = new ArrayList<>(mp.getNumGeometries());
@@ -46,7 +47,6 @@ public class ParseGeometryForFlatten {
                 xcoords[idx] = seq.getX(0);
                 ycoords[idx] = seq.getY(0);
 
-                partlist.add(idx);
                 idx++;
             }
         } else if (geometry instanceof LineString ls) {
@@ -61,7 +61,6 @@ public class ParseGeometryForFlatten {
                 ycoords[idx + i] = seq.getY(i);
             }
 
-            partlist.add(idx);
             idx += size;
 
         } else if (geometry instanceof MultiLineString mline) {

@@ -1,5 +1,6 @@
-package ir.smh.spatialbricks;
+package ir.smh.spatialbricks.api;
 
+import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.core.AddOrUpdateIndex;
 import ir.smh.spatialbricks.core.PipelineExecutor;
 import ir.smh.spatialbricks.core.TableSpec;
@@ -7,10 +8,7 @@ import ir.smh.spatialbricks.encoder.converttogeometry.GeoJsonGeometricalAdapter;
 import ir.smh.spatialbricks.encoder.converttogeometry.GeometryReader;
 import ir.smh.spatialbricks.encoder.converttogeometry.WKBReaderAdapter;
 import ir.smh.spatialbricks.encoder.converttogeometry.WKTReaderAdapter;
-import ir.smh.spatialbricks.udf.FlattenSpatialParquet;
-import ir.smh.spatialbricks.udf.SpatialParquet;
-import ir.smh.spatialbricks.udf.UDFRegistry;
-import ir.smh.spatialbricks.udf.WKBIndexedParquet;
+import ir.smh.spatialbricks.udf.*;
 import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -21,23 +19,14 @@ import org.apache.spark.sql.catalyst.parser.ParseException;
 import java.io.IOException;
 import java.util.Objects;
 
+
 public class SpatialBricks {
 
     private final SparkSession spark;
     private final AddOrUpdateIndex index;
     private final PipelineExecutor writer;
 
-    public enum InputFormat {
-        GEOJSON,
-        WKB,
-        WKT
-    }
 
-    public enum GeometryFormat {
-        WKB_PARQUET,
-        SPATIAL_PARQUET,
-        FLATTEN_SPATIAL_PARQUET
-    }
 
     private static class ReaderFactory {
 
@@ -57,9 +46,9 @@ public class SpatialBricks {
                 SparkSession spark) {
 
             return switch (format) {
-                case WKB_PARQUET -> new WKBIndexedParquet(spark);
-                case SPATIAL_PARQUET -> new SpatialParquet(spark);
-                case FLATTEN_SPATIAL_PARQUET -> new FlattenSpatialParquet(spark);
+                case WKB -> new WKBIndexedParquet(spark);
+                case SP -> new SpatialParquet(spark);
+                case FSP -> new FlattenSpatialParquet(spark);
             };
         }
     }

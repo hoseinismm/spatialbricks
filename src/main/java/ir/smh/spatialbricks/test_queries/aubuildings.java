@@ -217,9 +217,9 @@ public class aubuildings {
                 bboxFilter
         );
 
-        long t1 = System.currentTimeMillis();
-
         spark.sql(sql).show(false);
+
+        long t1 = System.currentTimeMillis();
 
         long duration = System.currentTimeMillis() - t1;
 
