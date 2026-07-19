@@ -3,6 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
+
     <groupId>ir.smh</groupId>
     <artifactId>spatialbricks</artifactId>
     <version>1.0-SNAPSHOT</version>
@@ -18,51 +19,40 @@
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <scala.version>2.13</scala.version>
+
         <spark.version>3.5.6</spark.version>
         <sedona.version>1.7.2</sedona.version>
         <iceberg.version>1.9.2</iceberg.version>
     </properties>
 
+
     <dependencies>
 
-        <dependency>
-            <groupId>org.openjdk.jmh</groupId>
-            <artifactId>jmh-core</artifactId>
-            <version>1.37</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjdk.jmh</groupId>
-            <artifactId>jmh-generator-annprocess</artifactId>
-            <version>1.37</version>
-            <scope>provided</scope>
-        </dependency>
 
 
 
-        <!-- https://mvnrepository.com/artifact/org.apache.iceberg/iceberg-core -->
+        <!-- JSON -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.15.3</version> <!-- یا هر نسخه‌ای بین 2.15.0 و کمتر از 2.16.0 -->
+            <version>2.15.3</version>
         </dependency>
 
+
+        <!-- Iceberg Core -->
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-core</artifactId>
-            <version>1.9.2</version>
-            <scope>runtime</scope>
+            <version>${iceberg.version}</version>
         </dependency>
 
+
+        <!-- JTS -->
         <dependency>
             <groupId>org.locationtech.jts.io</groupId>
             <artifactId>jts-io-common</artifactId>
             <version>1.20.0</version>
         </dependency>
-
-
-
-
 
         <dependency>
             <groupId>org.locationtech.jts</groupId>
@@ -70,6 +60,8 @@
             <version>1.20.0</version>
         </dependency>
 
+
+        <!-- Geohash -->
         <dependency>
             <groupId>ch.hsr</groupId>
             <artifactId>geohash</artifactId>
@@ -77,36 +69,39 @@
         </dependency>
 
 
-
-
-
-        <!-- Spark SQL -->
+        <!-- Spark -->
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.13</artifactId>
-            <version>3.5.6</version>
+            <version>${spark.version}</version>
         </dependency>
 
-        <!-- Sedona -->
 
+        <!-- Sedona -->
         <dependency>
             <groupId>org.apache.sedona</groupId>
             <artifactId>sedona-spark-shaded-3.5_2.13</artifactId>
-            <version>1.7.2</version>
+            <version>${sedona.version}</version>
         </dependency>
 
+
+        <!-- Iceberg Spark Extensions -->
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-spark-extensions-3.5_2.13</artifactId>
-            <version>1.9.2</version>
+            <version>${iceberg.version}</version>
         </dependency>
 
+
+        <!-- GeoTools -->
         <dependency>
             <groupId>org.datasyslab</groupId>
             <artifactId>geotools-wrapper</artifactId>
             <version>1.7.2-28.5</version>
         </dependency>
 
+
+        <!-- Commons -->
         <dependency>
             <groupId>commons-lang</groupId>
             <artifactId>commons-lang</artifactId>
@@ -114,20 +109,15 @@
         </dependency>
 
 
-
-
-
+        <!-- Hadoop -->
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
             <version>3.3.6</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.iceberg</groupId>
-            <artifactId>iceberg-spark-runtime-3.5_2.13</artifactId>
-            <version>1.9.2</version>
-        </dependency>
+
+        <!-- Tests -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -138,39 +128,26 @@
 
     </dependencies>
 
+
     <build>
+
         <plugins>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
+
                 <configuration>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
                 </configuration>
+
             </plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals><goal>shade</goal></goals>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>thdgd.GeoParquetTest</mainClass>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
+
     </build>
+
 
 </project>
