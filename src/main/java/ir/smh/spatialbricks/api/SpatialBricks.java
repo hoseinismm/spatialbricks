@@ -1,6 +1,5 @@
 package ir.smh.spatialbricks.api;
 
-import ir.smh.spatialbricks.config.SparkConfig;
 import ir.smh.spatialbricks.core.AddOrUpdateIndex;
 import ir.smh.spatialbricks.core.PipelineExecutor;
 import ir.smh.spatialbricks.core.TableSpec;
@@ -19,14 +18,11 @@ import org.apache.spark.sql.catalyst.parser.ParseException;
 import java.io.IOException;
 import java.util.Objects;
 
-
 public class SpatialBricks {
 
     private final SparkSession spark;
     private final AddOrUpdateIndex index;
     private final PipelineExecutor writer;
-
-
 
     private static class ReaderFactory {
 
