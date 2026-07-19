@@ -68,9 +68,7 @@ public class SpatialBricks {
         udfRegistry.registerGeometryUdf(geometryReader);
 
         this.index = new AddOrUpdateIndex(spark, udfRegistry);
-        this.writer = new PipelineExecutor(spark, udfRegistry);
-
-
+        this.writer = new PipelineExecutor(spark,geometryReader, udfRegistry);
     }
 
     private TableSpec table(
