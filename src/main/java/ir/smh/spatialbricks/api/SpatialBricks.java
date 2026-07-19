@@ -56,6 +56,8 @@ public class SpatialBricks {
 
         this.spark = Objects.requireNonNull(spark);
 
+        SedonaContext.create(spark);
+
         GeometryReader<?> geometryReader =
                 ReaderFactory.create(inputFormat);
 
@@ -68,7 +70,7 @@ public class SpatialBricks {
         this.index = new AddOrUpdateIndex(spark, udfRegistry);
         this.writer = new PipelineExecutor(spark, udfRegistry);
 
-        SedonaContext.create(spark);
+
     }
 
     private TableSpec table(
